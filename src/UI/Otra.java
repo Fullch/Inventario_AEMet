@@ -18,47 +18,45 @@ import javax.swing.event.TableModelEvent;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.FontUIResource;
 import javax.swing.table.*;
-import javax.swing.text.StyleContext;
+import javax.swing.text.*;
 import java.awt.*;
-import java.awt.Color;
 import java.awt.Font;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.text.NumberFormat;
 import java.text.ParseException;
+import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 
-public class GUI extends JFrame {
+// TODO:
+//  -Crear plantilla para importar tabla
+//  -Habilitar y arreglar botones
+
+public class Otra extends JFrame {
     private JTabbedPane pestanas;
     private JTextField campoBusqueda;
-    private JTable tabla;
-    private JTable tabla2;
-    private JTable tabla3;
     private JButton botonExportar;
     private JButton botonImportar;
     private JButton botonExportarT;
     private JButton botonPrueba;
     private JPanel panelPrincipal;
     private JPanel panelBotones;
-    private JPanel panelTabla;
-    private JPanel panelTabla2;
-    private JPanel panelTabla3;
     private JPanel panelBusqueda;
 
-    int it = 0;
+    static int it = 0;
+    static String[] tipos = {"SSBB", "Informática", ""};
+    static ArrayList<DefaultTableModel> modeloTablas = new ArrayList<>();
 
-    public GUI(DBConexion con) throws SQLException {
+    public Otra(DBConexion con) throws SQLException {
 
         $$$setupUI$$$();
-
-        String[] tipos = {"SSBB", "Informática", ""};
-        ArrayList<DefaultTableModel> modeloTablas = new ArrayList<>();
 
         // Configuración de la ventana
         setTitle("INVENTARIO");
@@ -68,210 +66,8 @@ public class GUI extends JFrame {
         setVisible(true);
         setResizable(false);
 
-        TableRowSorter<TableModel> sorter;
-        DefaultTableModel modeloTabla = new DefaultTableModel();
-        modeloTablas.add(modeloTabla);
+        crearTablas(tipos, modeloTablas, con);
 
-        try {
-
-            modeloTabla.addColumn("ID");
-            modeloTabla.addColumn("Etiqueta AEMet");
-            modeloTabla.addColumn("Denominación");
-            modeloTabla.addColumn("Código Fabricante");
-            modeloTabla.addColumn("Cantidad");
-            modeloTabla.addColumn("Fecha Recepción");
-            modeloTabla.addColumn("Fecha Modificación");
-            modeloTabla.addColumn("");
-
-            tabla = new JTable(modeloTabla);
-            tabla.setFont(new Font("", Font.PLAIN, 16));
-            tabla.getTableHeader().setFont(new Font("", Font.BOLD, 16));
-
-            sorter = new TableRowSorter<>(modeloTabla);
-            tabla.setRowSorter(sorter);
-
-            tabla.setRowHeight(25);
-
-            GUI.CalendarioRenderer cr = new GUI.CalendarioRenderer();
-            GUI.CalendarioEditor ce = new GUI.CalendarioEditor();
-
-            tabla.getColumnModel().getColumn(5).setCellRenderer(cr);
-            tabla.getColumnModel().getColumn(5).setCellEditor(ce);
-            tabla.getColumnModel().getColumn(6).setCellRenderer(cr);
-            tabla.getColumnModel().getColumn(6).setCellEditor(ce);
-            tabla.getColumnModel().getColumn(7).setCellRenderer(new Interfaz.ButtonRenderer());
-            tabla.getColumnModel().getColumn(7).setCellEditor(new Interfaz.ButtonEditor(tabla));
-
-            it = refrescarTablas(modeloTablas, tipos, it);
-
-            JScrollPane scrollPane = new JScrollPane(tabla);
-            panelTabla.setLayout(new MigLayout("wrap, fill"));
-            panelTabla.add(scrollPane, "grow");
-
-            tabla.repaint();
-
-            modeloTabla.addTableModelListener(e -> {
-
-                if (e.getType() == TableModelEvent.UPDATE) {
-                    int fila = e.getFirstRow();
-                    int columna = e.getColumn();
-                    int id = Integer.parseInt((String) tabla.getValueAt(fila, 0));
-
-                    if (columna != 6) {
-
-                        String nuevoValor = (String) modeloTabla.getValueAt(fila, columna);
-
-                        con.updateTabla(id, columna, nuevoValor, tipos[0]);
-
-                        try {
-                            it = refrescarTablas(modeloTablas, tipos, it);
-                        } catch (SQLException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                    }
-                }
-            });
-
-        } catch (SQLException ex) {
-            throw new RuntimeException(ex);
-        }
-
-        TableRowSorter<TableModel> sorter2;
-        DefaultTableModel modeloTabla2 = new DefaultTableModel();
-        modeloTablas.add(modeloTabla2);
-
-        try {
-
-            modeloTabla2.addColumn("ID");
-            modeloTabla2.addColumn("Etiqueta AEMet");
-            modeloTabla2.addColumn("Denominación");
-            modeloTabla2.addColumn("Código Fabricante");
-            modeloTabla2.addColumn("Cantidad");
-            modeloTabla2.addColumn("Fecha Recepción");
-            modeloTabla2.addColumn("Fecha Modificación");
-            modeloTabla2.addColumn("");
-
-            tabla2 = new JTable(modeloTabla2);
-            tabla2.setFont(new Font("", Font.PLAIN, 16));
-            tabla2.getTableHeader().setFont(new Font("", Font.BOLD, 16));
-
-            sorter2 = new TableRowSorter<>(modeloTabla2);
-            tabla2.setRowSorter(sorter2);
-
-            tabla2.setRowHeight(25);
-
-            GUI.CalendarioRenderer cr = new GUI.CalendarioRenderer();
-            GUI.CalendarioEditor ce = new GUI.CalendarioEditor();
-
-            tabla2.getColumnModel().getColumn(5).setCellRenderer(cr);
-            tabla2.getColumnModel().getColumn(5).setCellEditor(ce);
-            tabla2.getColumnModel().getColumn(6).setCellRenderer(cr);
-            tabla2.getColumnModel().getColumn(6).setCellEditor(ce);
-            tabla2.getColumnModel().getColumn(7).setCellRenderer(new Interfaz.ButtonRenderer());
-            tabla2.getColumnModel().getColumn(7).setCellEditor(new Interfaz.ButtonEditor(tabla2));
-
-            it = refrescarTablas(modeloTablas, tipos, it);
-
-            JScrollPane scrollPane = new JScrollPane(tabla2);
-            panelTabla2.setLayout(new MigLayout("wrap, fill"));
-            panelTabla2.add(scrollPane, "grow");
-
-            tabla2.repaint();
-
-            modeloTabla2.addTableModelListener(e -> {
-
-                if (e.getType() == TableModelEvent.UPDATE) {
-                    int fila = e.getFirstRow();
-                    int columna = e.getColumn();
-                    int id = Integer.parseInt((String) tabla2.getValueAt(fila, 0));
-
-                    if (columna != 6) {
-
-                        String nuevoValor = (String) modeloTabla2.getValueAt(fila, columna);
-
-                        con.updateTabla(id, columna, nuevoValor, tipos[1]);
-
-                        try {
-                            it = refrescarTablas(modeloTablas, tipos, it);
-                        } catch (SQLException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                    }
-                }
-            });
-
-        } catch (SQLException ex) {
-            throw new RuntimeException(ex);
-        }
-
-        TableRowSorter<TableModel> sorter3;
-        DefaultTableModel modeloTabla3 = new DefaultTableModel();
-        modeloTablas.add(modeloTabla3);
-
-        try {
-
-            modeloTabla3.addColumn("ID");
-            modeloTabla3.addColumn("Etiqueta AEMet");
-            modeloTabla3.addColumn("Denominación");
-            modeloTabla3.addColumn("Código Fabricante");
-            modeloTabla3.addColumn("Cantidad");
-            modeloTabla3.addColumn("Fecha Recepción");
-            modeloTabla3.addColumn("Fecha Modificación");
-            modeloTabla3.addColumn("");
-
-            tabla3 = new JTable(modeloTabla3);
-            tabla3.setFont(new Font("", Font.PLAIN, 16));
-            tabla3.getTableHeader().setFont(new Font("", Font.BOLD, 16));
-
-            sorter3 = new TableRowSorter<>(modeloTabla3);
-            tabla3.setRowSorter(sorter3);
-
-            tabla3.setRowHeight(25);
-
-            GUI.CalendarioRenderer cr = new GUI.CalendarioRenderer();
-            GUI.CalendarioEditor ce = new GUI.CalendarioEditor();
-
-            tabla3.getColumnModel().getColumn(5).setCellRenderer(cr);
-            tabla3.getColumnModel().getColumn(5).setCellEditor(ce);
-            tabla3.getColumnModel().getColumn(6).setCellRenderer(cr);
-            tabla3.getColumnModel().getColumn(6).setCellEditor(ce);
-            tabla3.getColumnModel().getColumn(7).setCellRenderer(new Interfaz.ButtonRenderer());
-            tabla3.getColumnModel().getColumn(7).setCellEditor(new Interfaz.ButtonEditor(tabla3));
-
-            it = refrescarTablas(modeloTablas, tipos, it);
-
-            JScrollPane scrollPane = new JScrollPane(tabla3);
-            panelTabla3.setLayout(new MigLayout("wrap, fill"));
-            panelTabla3.add(scrollPane, "grow");
-
-            tabla3.repaint();
-
-            modeloTabla3.addTableModelListener(e -> {
-
-                if (e.getType() == TableModelEvent.UPDATE) {
-                    int fila = e.getFirstRow();
-                    int columna = e.getColumn();
-                    int id = Integer.parseInt((String) tabla3.getValueAt(fila, 0));
-
-                    if (columna != 6) {
-
-                        String nuevoValor = (String) modeloTabla3.getValueAt(fila, columna);
-
-                        con.updateTabla(id, columna, nuevoValor, tipos[2]);
-
-                        try {
-                            it = refrescarTablas(modeloTablas, tipos, it);
-                        } catch (SQLException ex) {
-                            throw new RuntimeException(ex);
-                        }
-                    }
-                }
-
-            });
-
-        } catch (SQLException ex) {
-            throw new RuntimeException(ex);
-        }
 
         campoBusqueda.addActionListener(e -> {
 
@@ -279,17 +75,18 @@ public class GUI extends JFrame {
 
             switch (pestanas.getSelectedIndex()) {
 
-                case 0:
-                    sorter.setRowFilter(rowFilter);
-                    break;
-
-                case 1:
-                    sorter2.setRowFilter(rowFilter);
-                    break;
-
-                case 2:
-                    sorter3.setRowFilter(rowFilter);
-                    break;
+//                case 0:
+//                    TableRowSorter<TableModel> sorter = pestanas.getTabComponentAt(0).get;
+//                    sorter.setRowFilter(rowFilter);
+//                    break;
+//
+//                case 1:
+//                    sorter2.setRowFilter(rowFilter);
+//                    break;
+//
+//                case 2:
+//                    sorter3.setRowFilter(rowFilter);
+//                    break;
             }
 
         });
@@ -306,16 +103,16 @@ public class GUI extends JFrame {
                 switch (pestanas.getSelectedIndex()) {
 
                     case 0:
-                        exportarExcel(tabla);
+                        exportarExcel((JTable) pestanas.getTabComponentAt(0));
                         break;
-
-                    case 1:
-                        exportarExcel(tabla2);
-                        break;
-
-                    case 2:
-                        exportarExcel(tabla3);
-                        break;
+//
+//                    case 1:
+//                        exportarExcel(tabla2);
+//                        break;
+//
+//                    case 2:
+//                        exportarExcel(tabla3);
+//                        break;
                 }
 
             } catch (IOException ex) {
@@ -335,16 +132,16 @@ public class GUI extends JFrame {
                 switch (pestanas.getSelectedIndex()) {
 
                     case 0:
-                        importarExcel(tabla);
+                        importarExcel((JTable) pestanas.getTabComponentAt(0));
                         break;
 
-                    case 1:
-                        importarExcel(tabla2);
-                        break;
-
-                    case 2:
-                        importarExcel(tabla3);
-                        break;
+//                    case 1:
+//                        importarExcel(tabla2);
+//                        break;
+//
+//                    case 2:
+//                        importarExcel(tabla3);
+//                        break;
                 }
             } catch (SQLException ex) {
                 throw new RuntimeException(ex);
@@ -373,22 +170,7 @@ public class GUI extends JFrame {
 
         botonPrueba.addActionListener(e -> {
 
-            try {
-
-                prueba();
-
-            } catch (SQLException ex) {
-                throw new RuntimeException(ex);
-            }
-
         });
-
-        // Agregar los paneles al panel principal
-//        panelPrincipal.add(panelBotones, "wrap");
-//        panelPrincipal.add(panelBusqueda, "wrap");
-        pestanas.addTab(tipos[0], panelTabla);
-        pestanas.addTab(tipos[1], panelTabla2);
-        pestanas.addTab(tipos[2], panelTabla3);
 
         // Agregar el panel principal a la ventana
         add(panelPrincipal);
@@ -401,7 +183,122 @@ public class GUI extends JFrame {
         setVisible(true);
     }
 
-    private int refrescarTablas(ArrayList<DefaultTableModel> modeloTablas, String[] tipos, int it) throws SQLException {
+    private void crearTablas(String[] tipos, ArrayList<DefaultTableModel> modeloTablas, DBConexion con) {
+
+        for(int i = 0 ; i < tipos.length ; i++){
+
+            TableRowSorter<TableModel> sorter;
+            DefaultTableModel modeloTabla = new DefaultTableModel(){
+
+                @Override
+                public boolean isCellEditable(int row, int column) {
+                    if(column == 0) return false;
+                    return true;
+                }
+
+            };
+            modeloTablas.add(modeloTabla);
+
+            try {
+
+                modeloTabla.addColumn("ID");
+                modeloTabla.addColumn("Etiqueta AEMet");
+                modeloTabla.addColumn("Denominación");
+                modeloTabla.addColumn("Código Fabricante");
+                modeloTabla.addColumn("Cantidad");
+                modeloTabla.addColumn("Fecha Recepción");
+                modeloTabla.addColumn("Fecha Modificación");
+                modeloTabla.addColumn("");
+
+                JTable tabla = new JTable(modeloTabla);
+                tabla.setFont(new Font("", Font.PLAIN, 16));
+                tabla.getTableHeader().setFont(new Font("", Font.BOLD, 16));
+
+                tabla.getColumnModel().getColumn(1).setCellEditor(new NumberEditor());
+                tabla.getColumnModel().getColumn(4).setCellEditor(new NumberEditor());
+
+                tabla.getColumnModel().getColumn(3).setCellEditor(new CustomStringEditor());
+
+                CalendarioRenderer cr = new CalendarioRenderer();
+                CalendarioEditor ce = new CalendarioEditor();
+
+                tabla.getColumnModel().getColumn(5).setCellRenderer(cr);
+                tabla.getColumnModel().getColumn(5).setCellEditor(ce);
+                tabla.getColumnModel().getColumn(6).setCellRenderer(cr);
+                tabla.getColumnModel().getColumn(6).setCellEditor(ce);
+
+                tabla.getColumnModel().getColumn(7).setCellRenderer(new ButtonRenderer());
+                tabla.getColumnModel().getColumn(7).setCellEditor(new ButtonEditor(tabla));
+
+                sorter = new TableRowSorter<>(modeloTabla);
+                tabla.setRowSorter(sorter);
+
+                tabla.setRowHeight(25);
+
+                it = refrescarTablas(modeloTablas, tipos, it);
+
+                JScrollPane scrollPane = new JScrollPane(tabla);
+                JPanel panelTabla = new JPanel(new MigLayout("fill"));
+                panelTabla.setLayout(new MigLayout("wrap, fill"));
+                panelTabla.add(scrollPane, "grow");
+
+                pestanas.addTab(tipos[i], panelTabla);
+
+                tabla.repaint();
+
+                modeloTabla.addTableModelListener(e -> {
+
+                    if (e.getType() == TableModelEvent.UPDATE) {
+
+                        try{
+                            int fila = e.getFirstRow();
+                            int columna = e.getColumn();
+                            int id = Integer.parseInt((String) tabla.getValueAt(fila, 0));
+
+                            if (columna != 6) {
+
+                                if(columna == 3){
+
+
+                                }
+
+                                String nuevoValor;
+
+                                if(modeloTabla.getValueAt(fila, columna) != null){
+
+                                    nuevoValor = modeloTabla.getValueAt(fila, columna).toString();
+
+                                }else {
+
+                                    nuevoValor = null;
+                                }
+
+                                con.updateTabla(id, columna, nuevoValor, tipos[0]);
+
+                                try {
+                                    it = refrescarTablas(modeloTablas, tipos, it);
+                                } catch (SQLException ex) {
+                                    throw new RuntimeException(ex);
+                                }
+                            }
+                        }catch(Exception ex){
+
+                            JOptionPane.showMessageDialog(null, "Formato invalido");
+                            System.err.println(ex);
+//                            ex.printStackTrace();
+                        }
+                    }
+
+                });
+
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+
+        }
+    }
+
+    private static int refrescarTablas(ArrayList<DefaultTableModel> modeloTablas, String[] tipos, int it) throws SQLException {
 
         int i = 0;
 
@@ -414,7 +311,7 @@ public class GUI extends JFrame {
         return it;
     }
 
-    private int refrescarTabla(DefaultTableModel modeloTabla, String tipo, int it) throws SQLException {
+    private static int refrescarTabla(DefaultTableModel modeloTabla, String tipo, int it) throws SQLException {
 
         modeloTabla.setRowCount(0);
 
@@ -451,6 +348,9 @@ public class GUI extends JFrame {
                 modeloTabla.addRow(fila);
             }
 
+        } else {
+
+            it = 0;
         }
 
         // Esto hace falta porque el addRow requiere un array aunque sea vacío
@@ -477,27 +377,6 @@ public class GUI extends JFrame {
         Font pestanasFont = this.$$$getFont$$$(null, -1, 20, pestanas.getFont());
         if (pestanasFont != null) pestanas.setFont(pestanasFont);
         panelPrincipal.add(pestanas, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(200, 200), null, 0, false));
-        panelTabla = new JPanel();
-        panelTabla.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
-        pestanas.addTab("Untitled", panelTabla);
-        tabla = new JTable();
-        Font tablaFont = this.$$$getFont$$$(null, -1, 16, tabla.getFont());
-        if (tablaFont != null) tabla.setFont(tablaFont);
-        panelTabla.add(tabla, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_NORTH, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(150, 50), null, 0, false));
-        panelTabla2 = new JPanel();
-        panelTabla2.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
-        pestanas.addTab("Untitled", panelTabla2);
-        tabla2 = new JTable();
-        Font tabla2Font = this.$$$getFont$$$(null, -1, 16, tabla2.getFont());
-        if (tabla2Font != null) tabla2.setFont(tabla2Font);
-        panelTabla2.add(tabla2, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_NORTH, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(150, 50), null, 0, false));
-        panelTabla3 = new JPanel();
-        panelTabla3.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
-        pestanas.addTab("Untitled", panelTabla3);
-        tabla3 = new JTable();
-        Font tabla3Font = this.$$$getFont$$$(null, -1, 16, tabla3.getFont());
-        if (tabla3Font != null) tabla3.setFont(tabla3Font);
-        panelTabla3.add(tabla3, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_NORTH, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(150, 50), null, 0, false));
         panelBotones = new JPanel();
         panelBotones.setLayout(new GridLayoutManager(2, 3, new Insets(20, 0, 20, 0), -1, -1));
         panelPrincipal.add(panelBotones, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
@@ -551,6 +430,73 @@ public class GUI extends JFrame {
         return panelPrincipal;
     }
 
+    static class NumberEditor extends DefaultCellEditor {
+
+        public NumberEditor() {
+            super(new JFormattedTextField());
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+
+            JFormattedTextField editor = (JFormattedTextField) super.getTableCellEditorComponent(table, value, isSelected, row, column);
+
+            if (value instanceof Number){
+                Locale myLocale = Locale.getDefault();
+
+                NumberFormat numberFormatB = NumberFormat.getInstance(myLocale);
+                numberFormatB.setMaximumFractionDigits(2);
+                numberFormatB.setMinimumFractionDigits(2);
+                numberFormatB.setMinimumIntegerDigits(1);
+
+                editor.setFormatterFactory(new javax.swing.text.DefaultFormatterFactory(
+                        new NumberFormatter(numberFormatB)));
+
+                editor.setHorizontalAlignment(SwingConstants.RIGHT);
+                editor.setValue(value);
+            }
+
+            return editor;
+        }
+
+        @Override
+        public boolean stopCellEditing() {
+
+            return super.stopCellEditing();
+
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            // get content of textField
+            String str = (String) super.getCellEditorValue();
+            if (str == null) {
+                return null;
+            }
+
+            if (str.length() == 0) {
+                return null;
+            }
+
+            // try to parse a number
+            try {
+                ParsePosition pos = new ParsePosition(0);
+                Number n = NumberFormat.getInstance().parse(str, pos);
+                if (pos.getIndex() != str.length()) {
+                    throw new ParseException(
+                            "parsing incomplete", pos.getIndex());
+                }
+
+                // return an instance of column class
+                return n.intValue();
+
+            } catch (ParseException pex) {
+                throw new RuntimeException(pex);
+            }
+        }
+
+    }
+
     static class CalendarioRenderer extends DefaultTableCellRenderer {
         JDatePicker datePicker;
 
@@ -569,8 +515,8 @@ public class GUI extends JFrame {
                 model.setValue((Date) value);
 
                 // Crea un nuevo JDatePicker con el modelo
-
                 return new JDatePickerImpl(new JDatePanelImpl(model), new Interfaz.DateLabelFormatter());
+
             } else {
 
                 return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
@@ -640,7 +586,14 @@ public class GUI extends JFrame {
             this.table = table;
             button = new JButton();
             button.setOpaque(true);
-            button.addActionListener(e -> fireEditingStopped());
+            button.addActionListener(e -> {
+
+                try{
+                    fireEditingStopped();
+                }catch(Exception ex){
+                    System.err.println("Hay una excepción que no es necesario arreglarla hasta donde yo sé: \n" + ex);
+                }
+            });
         }
 
         @Override
@@ -679,6 +632,11 @@ public class GUI extends JFrame {
                 int fila = Integer.parseInt(parts[2]);
                 // Eliminar la fila correspondiente a la celda
                 ((DefaultTableModel) table.getModel()).removeRow(fila);
+                try {
+                    it = refrescarTablas(modeloTablas, tipos, it);
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             isPushed = false;
@@ -957,15 +915,78 @@ public class GUI extends JFrame {
 
     }
 
-    public void prueba() throws SQLException {
+    public static class CustomStringEditor extends DefaultCellEditor {
 
-        int confirm = JOptionPane.showConfirmDialog(this, "¿Desea sobreescribir los datos actuales?");
-        DefaultTableModel modelo = (DefaultTableModel) tabla.getModel();
+        public CustomStringEditor() {
+            super(new JTextField());
+            JTextField textField = (JTextField) getComponent();
+            textField.setDocument(createDocument());
+            textField.setHorizontalAlignment(SwingConstants.CENTER);
+        }
 
-        if (confirm != 1) {
+        private Document createDocument() {
+            PlainDocument document = new PlainDocument();
 
-            DBConexion.sobreescribirTabla(pestanas.getTitleAt(pestanas.getSelectedIndex()), modelo);
+            // Use a DocumentFilter to enforce the desired format
+            ((PlainDocument) document).setDocumentFilter(new DocumentFilter() {
+                @Override
+                public void insertString(FilterBypass fb, int offs, String str, AttributeSet a) throws BadLocationException {
+                    super.insertString(fb, offs, str, a);
+                }
 
+                @Override
+                public void replace(FilterBypass fb, int offset, int length, String text, AttributeSet attrs) throws BadLocationException {
+                    super.replace(fb, offset, length, text, attrs);
+                }
+            });
+
+            return document;
+        }
+
+        private boolean isValidString(String str) {
+            // Validate the string format "ccc.nn.nnn.nn"
+            String[] parts = str.split("\\.");
+            if (parts.length == 4) {
+                for (int i = 0; i < parts.length; i++) {
+                    if (i == 0) {
+                        if (!isAlpha(parts[i]) || parts[i].length() != 3) {
+                            return false;
+                        }
+                    } else {
+                        if (!isNumeric(parts[i]) || parts[i].length() != (i == 1 ? 2 : 3)) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        private boolean isAlpha(String str) {
+            return str.matches("[a-zA-Z]+");
+        }
+
+        private boolean isNumeric(String str) {
+            return str.matches("\\d+");
+        }
+
+        @Override
+        public boolean stopCellEditing() {
+            try {
+                // Validate the final string format before stopping cell editing
+                JTextField textField = (JTextField) getComponent();
+                String text = textField.getText();
+                if (isValidString(text)) {
+                    return super.stopCellEditing();
+                } else {
+                    // Show a warning if the final string is not valid
+                    System.out.println("bee");
+                    return false;
+                }
+            } catch (Exception ex) {
+                return false;
+            }
         }
     }
 }

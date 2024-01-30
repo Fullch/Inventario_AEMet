@@ -9,10 +9,10 @@ import java.util.Arrays;
 
 public class DBConexion {
 
-    private static String DRIVER = "com.mysql.cj.jdbc.Driver";
-    private static String USR = "remote";
-    private static String PASS = "h@R2P#tT!sYx7Z";
-    private static String URL = "jdbc:mysql://172.24.160.53:3306/dietas/inventario";
+    private static String DRIVER = "org.mariadb.jdbc.Driver";
+    private static String USR = "wmm";
+    private static String PASS = "Hamrorc4";
+    private static String URL = "jdbc:mariadb://joomla.aemet.es:3306/wmm_dtmad";
     static Connection con = null;
 
     static{
@@ -31,7 +31,7 @@ public class DBConexion {
             JOptionPane.showMessageDialog(null, "Conexión establecida");
 
         }catch(Exception e){
-            JOptionPane.showMessageDialog(null, "Conexion no encontrada" + e);
+            JOptionPane.showMessageDialog(null, "Conexion no encontrada " + e);
 
         }
 
@@ -86,19 +86,7 @@ public class DBConexion {
 
             rs.next();
 
-//            System.out.println(fila+1);
-//            String id = String.valueOf(Integer.parseInt(rs2.getString(1)) - 1);
-
             if(rs2.next()){
-
-//            System.out.println(id);
-
-//                System.out.println(fila + " " + rs.getString("column_name") + " " + nuevoValor );
-
-//            pst = con.prepareStatement("UPDATE almacen SET " + rs.getString("column_name") + " = ? WHERE ID = " + id);
-//            pst.setString(1, nuevoValor);
-//
-//            pst.executeUpdate();
 
                 pst = con.prepareStatement("UPDATE almacen SET " + rs.getString("column_name") + " = ? WHERE ID = "
                         + fila);
@@ -111,17 +99,6 @@ public class DBConexion {
                 Statement st3 = con.createStatement();
                 st3.executeUpdate("INSERT INTO almacen VALUES (" + fila + ", null, null, null, null, null, null, '" + tipo + "')");
 
-//                System.out.println(fila);
-
-//            System.out.println(id);
-
-//                System.out.println(id + " " + rs.getString("column_name") + " " + nuevoValor );
-
-//            pst = con.prepareStatement("UPDATE almacen SET " + rs.getString("column_name") + " = ? WHERE ID = " + id);
-//            pst.setString(1, nuevoValor);
-//
-//            pst.executeUpdate();
-
                 pst = con.prepareStatement("UPDATE almacen SET " + rs.getString("column_name") + " = ? WHERE ID = "
                         + fila);
                 pst.setString(1, nuevoValor);
@@ -132,7 +109,9 @@ public class DBConexion {
 
         }catch (SQLException e){
 
-            e.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Formato invalido");
+            System.err.println(e);
+//            e.printStackTrace();
 
         } finally {
             // Cerrar la conexión y el statement

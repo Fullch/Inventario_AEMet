@@ -1,6 +1,7 @@
 import Conexion.DBConexion;
 import UI.GUI;
 import UI.Interfaz;
+import UI.Otra;
 
 import java.sql.SQLException;
 
@@ -11,7 +12,7 @@ public class Main {
 
         if(con.getConnection() != null){
 
-            new GUI(con);
+            new Otra(con);
         }
     }
 }
