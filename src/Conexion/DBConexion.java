@@ -138,7 +138,7 @@ public class DBConexion {
 
         // Creamos los campos necesarios del mismo tipo
         ArrayList<String[]> row = new ArrayList<>();
-        for(int f = 0 ; f < modelo.getRowCount()-1 ; f++){
+        for(int f = 0 ; f < modelo.getRowCount() ; f++){
 
             ArrayList<String> campo = new ArrayList<>();
 
@@ -147,7 +147,7 @@ public class DBConexion {
                 if(modelo.getValueAt(f, c) != null) campo.add(modelo.getValueAt(f, c).toString());
                 else campo.add(null);
 
-//                System.out.println(modelo.getValueAt(f, c));
+                System.out.println(modelo.getValueAt(f, c));
             }
 
             String k[] = campo.toArray(new String[campo.size()]);
@@ -157,11 +157,11 @@ public class DBConexion {
         // Añadimos los campos creados
         for(String[] fila : row){
 
-//            System.out.println("INSERT INTO almacen VALUES ('" + fila[0] + "', '" + fila[1] + "', '" + fila[2] + "', '" + fila[3] + "', '" + fila[4] + "', '" + fila[5] + "', '" + fila[6] + "', '" + tipo + "')");
+            System.out.println("INSERT INTO almacen VALUES ('" + fila[0] + "', '" + fila[1] + "', '" + fila[2] + "', '" + fila[3] + "', '" + fila[4] + "', '" + fila[5] + "', '" + fila[6] + "', '" + tipo + "')");
             Statement st = con.createStatement();
             st.executeUpdate("INSERT INTO almacen VALUES ('" + fila[0] + "', " + fila[1] + ", '" + fila[2] + "', '" + fila[3] + "', " + fila[4] + ", " + fila[5] + ", " + fila[6] + ", '" + tipo + "')");
         }
 
-        JOptionPane.showMessageDialog(null, "Base da Datos actualizada correctamente");
+        JOptionPane.showMessageDialog(null, "Base de Datos actualizada correctamente");
     }
 }

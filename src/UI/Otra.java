@@ -12,6 +12,9 @@ import org.apache.poi.hssf.usermodel.HSSFCellStyle;
 import org.apache.poi.hssf.usermodel.HSSFFont;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import javax.swing.*;
 import javax.swing.event.TableModelEvent;
@@ -21,10 +24,7 @@ import javax.swing.table.*;
 import javax.swing.text.*;
 import java.awt.*;
 import java.awt.Font;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.text.ParseException;
@@ -34,12 +34,14 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
+import java.util.logging.Logger;
 
 // TODO:
 //  -Crear plantilla para importar tabla
 //  -Habilitar y arreglar botones
 
 public class Otra extends JFrame {
+
     private JTabbedPane pestanas;
     private JTextField campoBusqueda;
     private JButton botonExportar;
@@ -53,6 +55,7 @@ public class Otra extends JFrame {
     static int it = 0;
     static String[] tipos = {"SSBB", "Informática", ""};
     static ArrayList<DefaultTableModel> modeloTablas = new ArrayList<>();
+    static ArrayList<JTable> tablas = new ArrayList<>();
 
     public Otra(DBConexion con) throws SQLException {
 
@@ -68,26 +71,15 @@ public class Otra extends JFrame {
 
         crearTablas(tipos, modeloTablas, con);
 
-
         campoBusqueda.addActionListener(e -> {
 
             RowFilter<TableModel, Integer> rowFilter = RowFilter.regexFilter(campoBusqueda.getText());
 
-            switch (pestanas.getSelectedIndex()) {
+            int selectedIndex = pestanas.getSelectedIndex();
 
-//                case 0:
-//                    TableRowSorter<TableModel> sorter = pestanas.getTabComponentAt(0).get;
-//                    sorter.setRowFilter(rowFilter);
-//                    break;
-//
-//                case 1:
-//                    sorter2.setRowFilter(rowFilter);
-//                    break;
-//
-//                case 2:
-//                    sorter3.setRowFilter(rowFilter);
-//                    break;
-            }
+            TableRowSorter<TableModel> sorter = new TableRowSorter<>();
+            sorter = (TableRowSorter<TableModel>) tablas.get(selectedIndex).getRowSorter();
+            sorter.setRowFilter(rowFilter);
 
         });
 
@@ -95,28 +87,17 @@ public class Otra extends JFrame {
         botonExportar.setFont(new Font("Arial", Font.PLAIN, 16));
         botonExportar.setPreferredSize(new Dimension(150, 50));
 
-
         botonExportar.addActionListener(e -> {
 
-            try {
+            int selectedIndex = pestanas.getSelectedIndex();
 
-                switch (pestanas.getSelectedIndex()) {
+            if(selectedIndex != -1){
 
-                    case 0:
-                        exportarExcel((JTable) pestanas.getTabComponentAt(0));
-                        break;
-//
-//                    case 1:
-//                        exportarExcel(tabla2);
-//                        break;
-//
-//                    case 2:
-//                        exportarExcel(tabla3);
-//                        break;
+                try {
+                    exportarExcel(tablas.get(selectedIndex));
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
                 }
-
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
             }
 
         });
@@ -128,23 +109,15 @@ public class Otra extends JFrame {
 
         botonImportar.addActionListener(e -> {
 
-            try {
-                switch (pestanas.getSelectedIndex()) {
+            int selectedIndex = pestanas.getSelectedIndex();
 
-                    case 0:
-                        importarExcel((JTable) pestanas.getTabComponentAt(0));
-                        break;
+            if(selectedIndex != -1){
 
-//                    case 1:
-//                        importarExcel(tabla2);
-//                        break;
-//
-//                    case 2:
-//                        importarExcel(tabla3);
-//                        break;
+                try {
+                    importarExcel(tablas.get(selectedIndex));
+                } catch (SQLException ex) {
+                    throw new RuntimeException(ex);
                 }
-            } catch (SQLException ex) {
-                throw new RuntimeException(ex);
             }
         });
 
@@ -177,7 +150,7 @@ public class Otra extends JFrame {
 
         // Una última vez para que queden bien antes de poder interactuar, después se realizará
         // de forma automática
-        refrescarTablas(modeloTablas, tipos, it);
+        it = refrescarTablas(modeloTablas, tipos, it);
 
         // Hacer visible la ventana
         setVisible(true);
@@ -234,6 +207,8 @@ public class Otra extends JFrame {
                 tabla.setRowSorter(sorter);
 
                 tabla.setRowHeight(25);
+
+                tablas.add(tabla);
 
                 it = refrescarTablas(modeloTablas, tipos, it);
 
@@ -357,7 +332,7 @@ public class Otra extends JFrame {
         ArrayList<String[]> arrayVacio = new ArrayList<>();
         String[] vacio = {it + 1 + ""};
         arrayVacio.add(vacio);
-        modeloTabla.addRow(arrayVacio.get(0));
+        modeloTabla.addRow(arrayVacio.getFirst());
 
         return it;
     }
@@ -650,29 +625,6 @@ public class Otra extends JFrame {
         }
     }
 
-    public static class DateLabelFormatter extends JFormattedTextField.AbstractFormatter {
-
-        private final String datePattern = "dd-MM-yyyy";
-        private final SimpleDateFormat dateFormatter = new SimpleDateFormat(datePattern);
-
-        @Override
-        public Object stringToValue(String text) throws ParseException {
-            return dateFormatter.parseObject(text);
-        }
-
-        @Override
-        public String valueToString(Object value) {
-            if (value != null) {
-                Calendar cal = (Calendar) value;
-                return dateFormatter.format(cal.getTime());
-            }
-
-            return "";
-        }
-
-    }
-
-    @SuppressWarnings("ResultOfMethodCallIgnored")
     public void exportarExcel(JTable tabla) throws IOException {
 
         JFileChooser chooser = new JFileChooser();
@@ -691,6 +643,7 @@ public class Otra extends JFrame {
             }
 
             archivoXLS.createNewFile();
+
             HSSFWorkbook libro = new HSSFWorkbook();
             FileOutputStream archivo = new FileOutputStream(archivoXLS);
             Sheet hoja = libro.createSheet("Tabla");
@@ -731,22 +684,29 @@ public class Otra extends JFrame {
                 fila.setHeight((short) 450);
                 filaInicio++;
                 for (int c = 0; c < tabla.getColumnCount() - 1; c++) {
+
                     Cell celda = fila.createCell(c);
                     celda.setCellStyle(estiloCelda);
                     hoja.setColumnWidth(c, 4500);
+
                     if (tabla.getValueAt(f, c) instanceof Double) {
                         celda.setCellValue(Double.parseDouble(tabla.getValueAt(f, c).toString()));
                     } else if (tabla.getValueAt(f, c) instanceof Float) {
                         celda.setCellValue(Float.parseFloat((String) tabla.getValueAt(f, c)));
-                    } else {
+                    } else if (tabla.getValueAt(f, c) instanceof String){
                         celda.setCellValue(String.valueOf(tabla.getValueAt(f, c)));
-                    }
+                    } else celda.setCellValue("");
                 }
             }
 
-            libro.write(archivo);
-            archivo.close();
-            Desktop.getDesktop().open(archivoXLS);
+            try {
+                libro.write(archivo);
+                archivo.close();
+                Desktop.getDesktop().open(archivoXLS);
+            } catch (IOException e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(null, "Error al abrir el archivo: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
 
         }
     }
@@ -846,11 +806,11 @@ public class Otra extends JFrame {
         chooser.setFileFilter(filter);
         chooser.setDialogTitle("Seleccionar archivo Excel");
         int userSelection = chooser.showOpenDialog(this);
+        DefaultTableModel model = (DefaultTableModel) tabla.getModel();
 
         if (userSelection == JFileChooser.APPROVE_OPTION) {
             File file = chooser.getSelectedFile();
 
-            DefaultTableModel model = (DefaultTableModel) tabla.getModel();
 
             // Limpiar la tabla antes de la importación
             model.setRowCount(0);
@@ -873,10 +833,8 @@ public class Otra extends JFrame {
                     Object[] rowData = new Object[row.getLastCellNum()];
 
                     // Iterar sobre las celdas de la fila
-                    for (int i = 0; i < row.getLastCellNum(); i++) {
+                    for (int i = 0; i < row.getLastCellNum()-1; i++) {
                         Cell cell = row.getCell(i, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-
-                        if (it == 0 && !cabezera.contains(rowData[i].toString())) throw new IOException();
 
                         // Dependiendo del tipo de celda, obtener el valor adecuado
                         switch (cell.getCellType()) {
@@ -894,9 +852,14 @@ public class Otra extends JFrame {
                         }
                     }
 
-                    // Agregar la fila al modelo de la tabla
-                    model.addRow(rowData);
-                    it++;
+                    // Verificar si alguna celda coincide con elementos de la cabecera
+                    boolean coincidenciaCabecera = Arrays.stream(rowData).anyMatch(cellData -> cabezera.contains(String.valueOf(cellData)));
+
+                    // Agregar la fila al modelo de la tabla solo si no hay coincidencia
+                    if (!coincidenciaCabecera) {
+                        model.addRow(rowData);
+                        it++;
+                    }
                 }
 
             } catch (IOException ex) {
@@ -909,12 +872,24 @@ public class Otra extends JFrame {
         if (confirm != 1) {
 
             String tipo = pestanas.getTitleAt(pestanas.getSelectedIndex());
-            DBConexion.sobreescribirTabla(tipo, (DefaultTableModel) tabla.getModel());
+            DBConexion.sobreescribirTabla(tipo, model);
 
         }
-
     }
 
+    private static Object getCellValue(Cell cell) {
+        // Manejar diferentes tipos de celdas
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                return cell.getNumericCellValue();
+            case BOOLEAN:
+                return cell.getBooleanCellValue();
+            default:
+                return null;
+        }
+    }
     public static class CustomStringEditor extends DefaultCellEditor {
 
         public CustomStringEditor() {
