@@ -2,10 +2,8 @@ package Conexion;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableModel;
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 public class DBConexion {
 
@@ -69,6 +67,21 @@ public class DBConexion {
         }
 
         return data;
+    }
+
+    public static ArrayList<String> iniciarTipos() throws SQLException {
+
+        ArrayList<String> tipos = new ArrayList<>();
+
+        Statement st = con.createStatement();
+        ResultSet rs = st.executeQuery("SELECT DISTINCT tipo FROM almacen;");
+
+        while(rs.next()){
+
+            tipos.add(rs.getString(1));
+        }
+
+        return tipos;
     }
 
     public void updateTabla(int fila,int columna, String nuevoValor, String tipo){
@@ -157,7 +170,7 @@ public class DBConexion {
         // Añadimos los campos creados
         for(String[] fila : row){
 
-            System.out.println("INSERT INTO almacen VALUES ('" + fila[0] + "', '" + fila[1] + "', '" + fila[2] + "', '" + fila[3] + "', '" + fila[4] + "', '" + fila[5] + "', '" + fila[6] + "', '" + tipo + "')");
+//            System.out.println("INSERT INTO almacen VALUES ('" + fila[0] + "', '" + fila[1] + "', '" + fila[2] + "', '" + fila[3] + "', '" + fila[4] + "', '" + fila[5] + "', '" + fila[6] + "', '" + tipo + "')");
             Statement st = con.createStatement();
             st.executeUpdate("INSERT INTO almacen VALUES ('" + fila[0] + "', " + fila[1] + ", '" + fila[2] + "', '" + fila[3] + "', " + fila[4] + ", " + fila[5] + ", " + fila[6] + ", '" + tipo + "')");
         }

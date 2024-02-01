@@ -12,11 +12,10 @@ import org.apache.poi.hssf.usermodel.HSSFCellStyle;
 import org.apache.poi.hssf.usermodel.HSSFFont;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFCellStyle;
-import org.apache.poi.xssf.usermodel.XSSFFont;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.FontUIResource;
@@ -25,6 +24,9 @@ import javax.swing.text.*;
 import java.awt.*;
 import java.awt.Font;
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.text.ParseException;
@@ -34,11 +36,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
-import java.util.logging.Logger;
 
 // TODO:
-//  -Crear plantilla para importar tabla
-//  -Habilitar y arreglar botones
+//  -Nada por ahora :)
 
 public class Otra extends JFrame {
 
@@ -49,11 +49,9 @@ public class Otra extends JFrame {
     private JButton botonExportarT;
     private JButton botonPrueba;
     private JPanel panelPrincipal;
-    private JPanel panelBotones;
-    private JPanel panelBusqueda;
 
     static int it = 0;
-    static String[] tipos = {"SSBB", "Informática", ""};
+    static ArrayList<String> tipos = new ArrayList<>();
     static ArrayList<DefaultTableModel> modeloTablas = new ArrayList<>();
     static ArrayList<JTable> tablas = new ArrayList<>();
 
@@ -69,7 +67,38 @@ public class Otra extends JFrame {
         setVisible(true);
         setResizable(false);
 
-        crearTablas(tipos, modeloTablas, con);
+        tipos = DBConexion.iniciarTipos();
+
+        crearTablas(con);
+        pestanas.setSelectedIndex(0);
+
+        pestanas.addTab("+", null);
+
+        pestanas.addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent e) {
+
+                if(Objects.equals(pestanas.getTitleAt(pestanas.getSelectedIndex()), "+")){
+
+                    pestanas.removeChangeListener(this);
+
+                    String tipoElegido = JOptionPane.showInputDialog(null, "¿Cómo desea que se llame la nueva pestaña?", "Crear nueva pestaña", JOptionPane.PLAIN_MESSAGE);
+
+                    if(tipoElegido != null && !tipoElegido.trim().isEmpty() && !Objects.equals(tipoElegido, "+")){
+
+                        tipos.add(tipoElegido);
+                        crearTabla(tipoElegido, con);
+                        pestanas.setSelectedIndex(pestanas.getTabCount()-2);
+
+                    }else{
+
+                        JOptionPane.showMessageDialog(null, "Título inválido", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+
+                    pestanas.addChangeListener(this);
+                }
+            }
+        });
 
         campoBusqueda.addActionListener(e -> {
 
@@ -77,8 +106,7 @@ public class Otra extends JFrame {
 
             int selectedIndex = pestanas.getSelectedIndex();
 
-            TableRowSorter<TableModel> sorter = new TableRowSorter<>();
-            sorter = (TableRowSorter<TableModel>) tablas.get(selectedIndex).getRowSorter();
+            TableRowSorter<TableModel> sorter = (TableRowSorter<TableModel>) tablas.get(selectedIndex).getRowSorter();
             sorter.setRowFilter(rowFilter);
 
         });
@@ -105,7 +133,6 @@ public class Otra extends JFrame {
         // Botón que importa a Excel
         botonImportar.setFont(new Font("Arial", Font.PLAIN, 16));
         botonImportar.setPreferredSize(new Dimension(150, 50));
-//        panelBotones.add(botonImportar);
 
         botonImportar.addActionListener(e -> {
 
@@ -124,12 +151,11 @@ public class Otra extends JFrame {
         // Botón que exporta toda la tabla a Excel
         botonExportarT.setFont(new Font("Arial", Font.PLAIN, 16));
         botonExportarT.setPreferredSize(new Dimension(150, 50));
-//        panelBotones.add(botonExportarT);
 
         botonExportarT.addActionListener(e -> {
 
             try {
-                exportarTodo(tipos);
+                exportarTodo();
             } catch (IOException | SQLException ex) {
                 throw new RuntimeException(ex);
             }
@@ -140,146 +166,154 @@ public class Otra extends JFrame {
         botonPrueba.setFont(new Font("Arial", Font.PLAIN, 16));
         botonPrueba.setPreferredSize(new Dimension(150, 50));
 
-
         botonPrueba.addActionListener(e -> {
 
+            descargarPlantilla();
         });
 
-        // Agregar el panel principal a la ventana
         add(panelPrincipal);
 
         // Una última vez para que queden bien antes de poder interactuar, después se realizará
         // de forma automática
-        it = refrescarTablas(modeloTablas, tipos, it);
+        it = refrescarTablas();
 
-        // Hacer visible la ventana
         setVisible(true);
     }
 
-    private void crearTablas(String[] tipos, ArrayList<DefaultTableModel> modeloTablas, DBConexion con) {
+    //////////////////////////////////////////////////////////////////////////////////////
+                                    // Métodos tablas //
+    //////////////////////////////////////////////////////////////////////////////////////
 
-        for(int i = 0 ; i < tipos.length ; i++){
+    private void crearTabla(String tipo, DBConexion con) {
 
-            TableRowSorter<TableModel> sorter;
-            DefaultTableModel modeloTabla = new DefaultTableModel(){
+        TableRowSorter<TableModel> sorter;
+        DefaultTableModel modeloTabla = new DefaultTableModel(){
 
-                @Override
-                public boolean isCellEditable(int row, int column) {
-                    if(column == 0) return false;
-                    return true;
-                }
-
-            };
-            modeloTablas.add(modeloTabla);
-
-            try {
-
-                modeloTabla.addColumn("ID");
-                modeloTabla.addColumn("Etiqueta AEMet");
-                modeloTabla.addColumn("Denominación");
-                modeloTabla.addColumn("Código Fabricante");
-                modeloTabla.addColumn("Cantidad");
-                modeloTabla.addColumn("Fecha Recepción");
-                modeloTabla.addColumn("Fecha Modificación");
-                modeloTabla.addColumn("");
-
-                JTable tabla = new JTable(modeloTabla);
-                tabla.setFont(new Font("", Font.PLAIN, 16));
-                tabla.getTableHeader().setFont(new Font("", Font.BOLD, 16));
-
-                tabla.getColumnModel().getColumn(1).setCellEditor(new NumberEditor());
-                tabla.getColumnModel().getColumn(4).setCellEditor(new NumberEditor());
-
-                tabla.getColumnModel().getColumn(3).setCellEditor(new CustomStringEditor());
-
-                CalendarioRenderer cr = new CalendarioRenderer();
-                CalendarioEditor ce = new CalendarioEditor();
-
-                tabla.getColumnModel().getColumn(5).setCellRenderer(cr);
-                tabla.getColumnModel().getColumn(5).setCellEditor(ce);
-                tabla.getColumnModel().getColumn(6).setCellRenderer(cr);
-                tabla.getColumnModel().getColumn(6).setCellEditor(ce);
-
-                tabla.getColumnModel().getColumn(7).setCellRenderer(new ButtonRenderer());
-                tabla.getColumnModel().getColumn(7).setCellEditor(new ButtonEditor(tabla));
-
-                sorter = new TableRowSorter<>(modeloTabla);
-                tabla.setRowSorter(sorter);
-
-                tabla.setRowHeight(25);
-
-                tablas.add(tabla);
-
-                it = refrescarTablas(modeloTablas, tipos, it);
-
-                JScrollPane scrollPane = new JScrollPane(tabla);
-                JPanel panelTabla = new JPanel(new MigLayout("fill"));
-                panelTabla.setLayout(new MigLayout("wrap, fill"));
-                panelTabla.add(scrollPane, "grow");
-
-                pestanas.addTab(tipos[i], panelTabla);
-
-                tabla.repaint();
-
-                modeloTabla.addTableModelListener(e -> {
-
-                    if (e.getType() == TableModelEvent.UPDATE) {
-
-                        try{
-                            int fila = e.getFirstRow();
-                            int columna = e.getColumn();
-                            int id = Integer.parseInt((String) tabla.getValueAt(fila, 0));
-
-                            if (columna != 6) {
-
-                                if(columna == 3){
-
-
-                                }
-
-                                String nuevoValor;
-
-                                if(modeloTabla.getValueAt(fila, columna) != null){
-
-                                    nuevoValor = modeloTabla.getValueAt(fila, columna).toString();
-
-                                }else {
-
-                                    nuevoValor = null;
-                                }
-
-                                con.updateTabla(id, columna, nuevoValor, tipos[0]);
-
-                                try {
-                                    it = refrescarTablas(modeloTablas, tipos, it);
-                                } catch (SQLException ex) {
-                                    throw new RuntimeException(ex);
-                                }
-                            }
-                        }catch(Exception ex){
-
-                            JOptionPane.showMessageDialog(null, "Formato invalido");
-                            System.err.println(ex);
-//                            ex.printStackTrace();
-                        }
-                    }
-
-                });
-
-            } catch (SQLException ex) {
-                throw new RuntimeException(ex);
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                if(column == 0) return false;
+                return true;
             }
 
+        };
+
+        modeloTablas.add(modeloTabla);
+
+        try {
+
+            modeloTabla.addColumn("ID");
+            modeloTabla.addColumn("Etiqueta AEMet");
+            modeloTabla.addColumn("Denominación");
+            modeloTabla.addColumn("Código Fabricante");
+            modeloTabla.addColumn("Cantidad");
+            modeloTabla.addColumn("Fecha Recepción");
+            modeloTabla.addColumn("Fecha Modificación");
+            modeloTabla.addColumn("");
+
+            JTable tabla = new JTable(modeloTabla);
+            tabla.setFont(new Font("", Font.PLAIN, 16));
+            tabla.getTableHeader().setFont(new Font("", Font.BOLD, 16));
+
+            tabla.getColumnModel().getColumn(1).setCellEditor(new NumberEditor());
+            tabla.getColumnModel().getColumn(4).setCellEditor(new NumberEditor());
+
+            tabla.getColumnModel().getColumn(3).setCellEditor(new CustomStringEditor());
+
+            CalendarioRenderer cr = new CalendarioRenderer();
+            CalendarioEditor ce = new CalendarioEditor();
+
+            tabla.getColumnModel().getColumn(5).setCellRenderer(cr);
+            tabla.getColumnModel().getColumn(5).setCellEditor(ce);
+            tabla.getColumnModel().getColumn(6).setCellRenderer(cr);
+            tabla.getColumnModel().getColumn(6).setCellEditor(ce);
+
+            tabla.getColumnModel().getColumn(7).setCellRenderer(new ButtonRenderer());
+            tabla.getColumnModel().getColumn(7).setCellEditor(new ButtonEditor(tabla));
+
+            sorter = new TableRowSorter<>(modeloTabla);
+            tabla.setRowSorter(sorter);
+
+            tabla.setRowHeight(25);
+
+            tablas.add(tabla);
+
+            it = refrescarTablas();
+
+            JScrollPane scrollPane = new JScrollPane(tabla);
+            JPanel panelTabla = new JPanel(new MigLayout("fill"));
+            panelTabla.setLayout(new MigLayout("wrap, fill"));
+            panelTabla.add(scrollPane, "grow");
+
+            pestanas.insertTab(tipo, null, panelTabla, null, tipos.indexOf(tipo));
+
+            tabla.repaint();
+
+            modeloTabla.addTableModelListener(e -> {
+
+                if (e.getType() == TableModelEvent.UPDATE) {
+
+                    try{
+                        int fila = e.getFirstRow();
+                        int columna = e.getColumn();
+                        int id = Integer.parseInt((String) tabla.getValueAt(fila, 0));
+
+                        if (columna != 6) {
+
+                            if(columna == 3){
+
+
+                            }
+
+                            String nuevoValor;
+
+                            if(modeloTabla.getValueAt(fila, columna) != null){
+
+                                nuevoValor = modeloTabla.getValueAt(fila, columna).toString();
+
+                            }else {
+
+                                nuevoValor = null;
+                            }
+
+                            con.updateTabla(id, columna, nuevoValor, tipos.get(pestanas.getSelectedIndex()));
+
+                            try {
+                                it = refrescarTablas();
+                            } catch (SQLException ex) {
+                                throw new RuntimeException(ex);
+                            }
+                        }
+                    }catch(Exception ex){
+
+                        JOptionPane.showMessageDialog(null, "Formato invalido");
+                        System.err.println(ex);
+//                            ex.printStackTrace();
+                    }
+                }
+
+            });
+
+        } catch (SQLException ex) {
+            throw new RuntimeException(ex);
+        }
+
+    }
+
+    private void crearTablas(DBConexion con) {
+
+        for(String tipo : tipos){
+
+            crearTabla(tipo, con);
         }
     }
 
-    private static int refrescarTablas(ArrayList<DefaultTableModel> modeloTablas, String[] tipos, int it) throws SQLException {
+    private static int refrescarTablas() throws SQLException {
 
         int i = 0;
 
         for (DefaultTableModel modeloTabla : modeloTablas) {
 
-            it = refrescarTabla(modeloTabla, tipos[i], it);
+            it = refrescarTabla(modeloTabla, tipos.get(i), it);
             i++;
         }
 
@@ -337,6 +371,9 @@ public class Otra extends JFrame {
         return it;
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////
+                                // Métodos para la interfaz //
+    //////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * Method generated by IntelliJ IDEA GUI Designer
@@ -352,7 +389,7 @@ public class Otra extends JFrame {
         Font pestanasFont = this.$$$getFont$$$(null, -1, 20, pestanas.getFont());
         if (pestanasFont != null) pestanas.setFont(pestanasFont);
         panelPrincipal.add(pestanas, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(200, 200), null, 0, false));
-        panelBotones = new JPanel();
+        JPanel panelBotones = new JPanel();
         panelBotones.setLayout(new GridLayoutManager(2, 3, new Insets(20, 0, 20, 0), -1, -1));
         panelPrincipal.add(panelBotones, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
         botonExportar = new JButton();
@@ -367,7 +404,7 @@ public class Otra extends JFrame {
         botonPrueba = new JButton();
         botonPrueba.setText("Probar");
         panelBotones.add(botonPrueba, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        panelBusqueda = new JPanel();
+        JPanel panelBusqueda = new JPanel();
         panelBusqueda.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
         panelPrincipal.add(panelBusqueda, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
         campoBusqueda = new JTextField();
@@ -405,225 +442,9 @@ public class Otra extends JFrame {
         return panelPrincipal;
     }
 
-    static class NumberEditor extends DefaultCellEditor {
-
-        public NumberEditor() {
-            super(new JFormattedTextField());
-        }
-
-        @Override
-        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-
-            JFormattedTextField editor = (JFormattedTextField) super.getTableCellEditorComponent(table, value, isSelected, row, column);
-
-            if (value instanceof Number){
-                Locale myLocale = Locale.getDefault();
-
-                NumberFormat numberFormatB = NumberFormat.getInstance(myLocale);
-                numberFormatB.setMaximumFractionDigits(2);
-                numberFormatB.setMinimumFractionDigits(2);
-                numberFormatB.setMinimumIntegerDigits(1);
-
-                editor.setFormatterFactory(new javax.swing.text.DefaultFormatterFactory(
-                        new NumberFormatter(numberFormatB)));
-
-                editor.setHorizontalAlignment(SwingConstants.RIGHT);
-                editor.setValue(value);
-            }
-
-            return editor;
-        }
-
-        @Override
-        public boolean stopCellEditing() {
-
-            return super.stopCellEditing();
-
-        }
-
-        @Override
-        public Object getCellEditorValue() {
-            // get content of textField
-            String str = (String) super.getCellEditorValue();
-            if (str == null) {
-                return null;
-            }
-
-            if (str.length() == 0) {
-                return null;
-            }
-
-            // try to parse a number
-            try {
-                ParsePosition pos = new ParsePosition(0);
-                Number n = NumberFormat.getInstance().parse(str, pos);
-                if (pos.getIndex() != str.length()) {
-                    throw new ParseException(
-                            "parsing incomplete", pos.getIndex());
-                }
-
-                // return an instance of column class
-                return n.intValue();
-
-            } catch (ParseException pex) {
-                throw new RuntimeException(pex);
-            }
-        }
-
-    }
-
-    static class CalendarioRenderer extends DefaultTableCellRenderer {
-        JDatePicker datePicker;
-
-        public CalendarioRenderer() {
-            UtilDateModel model = new UtilDateModel();
-            JDatePanelImpl datePanel = new JDatePanelImpl(model);
-            datePicker = new JDatePickerImpl(datePanel, new Interfaz.DateLabelFormatter());
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-
-            if (value instanceof Date) {
-
-                UtilDateModel model = new UtilDateModel();
-                model.setValue((Date) value);
-
-                // Crea un nuevo JDatePicker con el modelo
-                return new JDatePickerImpl(new JDatePanelImpl(model), new Interfaz.DateLabelFormatter());
-
-            } else {
-
-                return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-            }
-        }
-
-    }
-
-    static class CalendarioEditor extends AbstractCellEditor implements TableCellEditor {
-        private final JDatePickerImpl datePicker;
-        public Date selectedDate;
-
-        public CalendarioEditor() {
-            UtilDateModel model = new UtilDateModel();
-            JDatePanelImpl datePanel = new JDatePanelImpl(model);
-            datePicker = new JDatePickerImpl(datePanel, new Interfaz.DateLabelFormatter());
-
-            datePicker.addActionListener(e -> stopCellEditing());
-        }
-
-        @Override
-        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-
-            UtilDateModel model;
-            if (value instanceof Date) {
-                model = new UtilDateModel((Date) value);
-            } else {
-                model = new UtilDateModel();
-            }
-            datePicker.getModel().setDate(model.getYear(), model.getMonth(), model.getDay());
-
-            return datePicker;
-        }
-
-        @Override
-        public Object getCellEditorValue() {
-            selectedDate = (Date) datePicker.getModel().getValue();
-            String pattern = "yyyy-MM-dd";
-            //            System.out.println(dateInString);
-            return new SimpleDateFormat(pattern).format(selectedDate);
-        }
-
-    }
-
-    // Clase de renderizador para mostrar el botón en la celda
-    static class ButtonRenderer extends JButton implements TableCellRenderer {
-        // Constructor
-        public ButtonRenderer() {
-            setOpaque(true);
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-            setText((value == null) ? "" : value.toString());
-            return this;
-        }
-    }
-
-    // Clase de editor para manejar los eventos del botón en la celda
-    static class ButtonEditor extends DefaultCellEditor {
-        private final JButton button;
-        private boolean isPushed;
-        private final JTable table;
-
-        public ButtonEditor(JTable table) {
-            super(new JCheckBox());
-            this.table = table;
-            button = new JButton();
-            button.setOpaque(true);
-            button.addActionListener(e -> {
-
-                try{
-                    fireEditingStopped();
-                }catch(Exception ex){
-                    System.err.println("Hay una excepción que no es necesario arreglarla hasta donde yo sé: \n" + ex);
-                }
-            });
-        }
-
-        @Override
-        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-
-            if (isSelected) {
-                button.setForeground(table.getSelectionForeground());
-                button.setBackground(table.getSelectionBackground());
-            } else {
-                button.setForeground(table.getForeground());
-                button.setBackground(table.getBackground());
-            }
-
-            //Nombre del botón
-            int id = Integer.parseInt((String) table.getValueAt(row, 0));
-            button.setActionCommand("Botón_" + id + "_" + row + "_" + column);
-
-            isPushed = true;
-            return button;
-        }
-
-        @Override
-        public Object getCellEditorValue() {
-
-            if (isPushed) {
-                // Manejar la acción del botón
-                String actionCommand = button.getActionCommand();
-                String[] parts = actionCommand.split("_");
-                int id = Integer.parseInt(parts[1]);
-                try {
-                    DBConexion.eliminarRegistro(id);
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-
-                int fila = Integer.parseInt(parts[2]);
-                // Eliminar la fila correspondiente a la celda
-                ((DefaultTableModel) table.getModel()).removeRow(fila);
-                try {
-                    it = refrescarTablas(modeloTablas, tipos, it);
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
-            isPushed = false;
-            return false;
-        }
-
-        @Override
-        public boolean stopCellEditing() {
-            isPushed = false;
-            return super.stopCellEditing();
-        }
-    }
+    //////////////////////////////////////////////////////////////////////////////////////
+                                // Métodos generales //
+    //////////////////////////////////////////////////////////////////////////////////////
 
     public void exportarExcel(JTable tabla) throws IOException {
 
@@ -711,8 +532,7 @@ public class Otra extends JFrame {
         }
     }
 
-    @SuppressWarnings("ResultOfMethodCallIgnored")
-    private void exportarTodo(String[] tipos) throws IOException, SQLException {
+    private void exportarTodo() throws IOException, SQLException {
 
         JFileChooser chooser = new JFileChooser();
         FileNameExtensionFilter filter = new FileNameExtensionFilter("Archivos de excel", "xls");
@@ -811,18 +631,14 @@ public class Otra extends JFrame {
         if (userSelection == JFileChooser.APPROVE_OPTION) {
             File file = chooser.getSelectedFile();
 
-
-            // Limpiar la tabla antes de la importación
             model.setRowCount(0);
 
             try (FileInputStream excelFile = new FileInputStream(file)) {
 
                 HSSFWorkbook workbook = new HSSFWorkbook(excelFile);
 
-                // Obtener la primera hoja de trabajo
                 Sheet sheet = workbook.getSheetAt(0);
 
-                // Iterar sobre las filas de la hoja de trabajo
                 Iterator<Row> rowIterator = sheet.iterator();
                 int it = 0;
                 String[] cabezeraArr = {"ID", "Etiqueta AEMet", "Denominación", "Código Fabricante", "Cantidad", "Fecha Recepción", "Fecha Modificación", "Tipo"};
@@ -832,17 +648,15 @@ public class Otra extends JFrame {
                     Row row = rowIterator.next();
                     Object[] rowData = new Object[row.getLastCellNum()];
 
-                    // Iterar sobre las celdas de la fila
                     for (int i = 0; i < row.getLastCellNum()-1; i++) {
                         Cell cell = row.getCell(i, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
 
-                        // Dependiendo del tipo de celda, obtener el valor adecuado
                         switch (cell.getCellType()) {
                             case STRING:
                                 rowData[i] = cell.getStringCellValue();
                                 break;
                             case NUMERIC:
-                                rowData[i] = cell.getNumericCellValue();
+                                rowData[i] = (int) cell.getNumericCellValue();
                                 break;
                             case BOOLEAN:
                                 rowData[i] = cell.getBooleanCellValue();
@@ -852,10 +666,8 @@ public class Otra extends JFrame {
                         }
                     }
 
-                    // Verificar si alguna celda coincide con elementos de la cabecera
                     boolean coincidenciaCabecera = Arrays.stream(rowData).anyMatch(cellData -> cabezera.contains(String.valueOf(cellData)));
 
-                    // Agregar la fila al modelo de la tabla solo si no hay coincidencia
                     if (!coincidenciaCabecera) {
                         model.addRow(rowData);
                         it++;
@@ -877,19 +689,275 @@ public class Otra extends JFrame {
         }
     }
 
-    private static Object getCellValue(Cell cell) {
-        // Manejar diferentes tipos de celdas
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                return cell.getNumericCellValue();
-            case BOOLEAN:
-                return cell.getBooleanCellValue();
-            default:
-                return null;
+    private static void descargarPlantilla() {
+
+        try {
+
+            String excelFilePath = "/Recursos/Plantilla.xls";
+
+            InputStream inputStream = Otra.class.getResourceAsStream(excelFilePath);
+
+            Path tempFilePath = Files.createTempFile("Plantilla", ".xls");
+            Files.copy(inputStream, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
+
+            Workbook workbook = new HSSFWorkbook(new FileInputStream(tempFilePath.toFile()));
+
+            JFileChooser fileChooser = new JFileChooser();
+            FileNameExtensionFilter filter = new FileNameExtensionFilter("Archivos de excel", "xls");
+            fileChooser.setFileFilter(filter);
+            fileChooser.setDialogTitle("Guardar archivo");
+            fileChooser.setAcceptAllFileFilterUsed(false);
+
+            int userSelection = fileChooser.showSaveDialog(null);
+
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+
+                File selectedFile = fileChooser.getSelectedFile();
+                String fileNameWithExtension = selectedFile.getName().endsWith(".xls") ? selectedFile.getName() : selectedFile.getName() + ".xls";
+                File selectedFileWithExtension = new File(selectedFile.getParentFile(), fileNameWithExtension);
+
+                try (FileOutputStream fileOut = new FileOutputStream(selectedFileWithExtension)) {
+                    workbook.write(fileOut);
+                    JOptionPane.showMessageDialog(null, "Archivo Excel descargado exitosamente.");
+                } catch (IOException e) {
+                    JOptionPane.showMessageDialog(null, "Error al guardar el archivo Excel: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+
+            inputStream.close();
+            Files.deleteIfExists(tempFilePath);
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, "Error al generar el archivo Excel: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
+
+    //////////////////////////////////////////////////////////////////////////////////////
+                                    // Custom cells //
+    //////////////////////////////////////////////////////////////////////////////////////
+
+    // Clase que sólo permite el uso de números en las celdas correspondientes
+    static class NumberEditor extends DefaultCellEditor {
+
+        public NumberEditor() {
+            super(new JFormattedTextField());
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+
+            JFormattedTextField editor = (JFormattedTextField) super.getTableCellEditorComponent(table, value, isSelected, row, column);
+
+            if (value instanceof Number){
+                Locale myLocale = Locale.getDefault();
+
+                NumberFormat numberFormatB = NumberFormat.getInstance(myLocale);
+                numberFormatB.setMaximumFractionDigits(2);
+                numberFormatB.setMinimumFractionDigits(2);
+                numberFormatB.setMinimumIntegerDigits(1);
+
+                editor.setFormatterFactory(new javax.swing.text.DefaultFormatterFactory(
+                        new NumberFormatter(numberFormatB)));
+
+                editor.setHorizontalAlignment(SwingConstants.RIGHT);
+                editor.setValue(value);
+            }
+
+            return editor;
+        }
+
+        @Override
+        public boolean stopCellEditing() {
+
+            return super.stopCellEditing();
+
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            // get content of textField
+            String str = (String) super.getCellEditorValue();
+            if (str == null) {
+                return null;
+            }
+
+            if (str.length() == 0) {
+                return null;
+            }
+
+            // try to parse a number
+            try {
+                ParsePosition pos = new ParsePosition(0);
+                Number n = NumberFormat.getInstance().parse(str, pos);
+                if (pos.getIndex() != str.length()) {
+                    throw new ParseException(
+                            "parsing incomplete", pos.getIndex());
+                }
+
+                // return an instance of column class
+                return n.intValue();
+
+            } catch (ParseException pex) {
+                throw new RuntimeException(pex);
+            }
+        }
+
+    }
+
+    // Clase para mostrar un calendario selector tras seleccionar las celdas correspondientes
+    static class CalendarioRenderer extends DefaultTableCellRenderer {
+        JDatePicker datePicker;
+
+        public CalendarioRenderer() {
+            UtilDateModel model = new UtilDateModel();
+            JDatePanelImpl datePanel = new JDatePanelImpl(model);
+            datePicker = new JDatePickerImpl(datePanel, new Interfaz.DateLabelFormatter());
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+
+            if (value instanceof Date) {
+
+                UtilDateModel model = new UtilDateModel();
+                model.setValue((Date) value);
+
+                // Crea un nuevo JDatePicker con el modelo
+                return new JDatePickerImpl(new JDatePanelImpl(model), new Interfaz.DateLabelFormatter());
+
+            } else {
+
+                return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            }
+        }
+
+    }
+
+    // Clase que permite insertar la selección del calendario en la celda
+    static class CalendarioEditor extends AbstractCellEditor implements TableCellEditor {
+        private final JDatePickerImpl datePicker;
+        public Date selectedDate;
+
+        public CalendarioEditor() {
+            UtilDateModel model = new UtilDateModel();
+            JDatePanelImpl datePanel = new JDatePanelImpl(model);
+            datePicker = new JDatePickerImpl(datePanel, new Interfaz.DateLabelFormatter());
+
+            datePicker.addActionListener(e -> stopCellEditing());
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+
+            UtilDateModel model;
+            if (value instanceof Date) {
+                model = new UtilDateModel((Date) value);
+            } else {
+                model = new UtilDateModel();
+            }
+            datePicker.getModel().setDate(model.getYear(), model.getMonth(), model.getDay());
+
+            return datePicker;
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            selectedDate = (Date) datePicker.getModel().getValue();
+            String pattern = "yyyy-MM-dd";
+            //            System.out.println(dateInString);
+            return new SimpleDateFormat(pattern).format(selectedDate);
+        }
+
+    }
+
+    // Clase de renderizador para mostrar el botón en la última celda
+    static class ButtonRenderer extends JButton implements TableCellRenderer {
+        // Constructor
+        public ButtonRenderer() {
+            setOpaque(true);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            setText((value == null) ? "" : value.toString());
+            return this;
+        }
+    }
+
+    // Clase de editor para manejar los eventos del botón en la última celda
+    static class ButtonEditor extends DefaultCellEditor {
+        private final JButton button;
+        private boolean isPushed;
+        private final JTable table;
+
+        public ButtonEditor(JTable table) {
+            super(new JCheckBox());
+            this.table = table;
+            button = new JButton();
+            button.setOpaque(true);
+            button.addActionListener(e -> {
+
+                try{
+                    fireEditingStopped();
+                }catch(Exception ex){
+                    System.err.println("Hay una excepción que no es necesario arreglarla hasta donde yo sé: \n" + ex);
+                }
+            });
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+
+            if (isSelected) {
+                button.setForeground(table.getSelectionForeground());
+                button.setBackground(table.getSelectionBackground());
+            } else {
+                button.setForeground(table.getForeground());
+                button.setBackground(table.getBackground());
+            }
+
+            int id = Integer.parseInt((String) table.getValueAt(row, 0));
+            button.setActionCommand("Botón_" + id + "_" + row + "_" + column);
+
+            isPushed = true;
+            return button;
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+
+            if (isPushed) {
+
+                String actionCommand = button.getActionCommand();
+                String[] parts = actionCommand.split("_");
+                int id = Integer.parseInt(parts[1]);
+                try {
+                    DBConexion.eliminarRegistro(id);
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+
+                int fila = Integer.parseInt(parts[2]);
+
+                ((DefaultTableModel) table.getModel()).removeRow(fila);
+                try {
+                    it = refrescarTablas();
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            isPushed = false;
+            return false;
+        }
+
+        @Override
+        public boolean stopCellEditing() {
+            isPushed = false;
+            return super.stopCellEditing();
+        }
+    }
+
     public static class CustomStringEditor extends DefaultCellEditor {
 
         public CustomStringEditor() {
@@ -902,7 +970,6 @@ public class Otra extends JFrame {
         private Document createDocument() {
             PlainDocument document = new PlainDocument();
 
-            // Use a DocumentFilter to enforce the desired format
             ((PlainDocument) document).setDocumentFilter(new DocumentFilter() {
                 @Override
                 public void insertString(FilterBypass fb, int offs, String str, AttributeSet a) throws BadLocationException {
@@ -919,7 +986,7 @@ public class Otra extends JFrame {
         }
 
         private boolean isValidString(String str) {
-            // Validate the string format "ccc.nn.nnn.nn"
+
             String[] parts = str.split("\\.");
             if (parts.length == 4) {
                 for (int i = 0; i < parts.length; i++) {
@@ -949,16 +1016,17 @@ public class Otra extends JFrame {
         @Override
         public boolean stopCellEditing() {
             try {
-                // Validate the final string format before stopping cell editing
+
                 JTextField textField = (JTextField) getComponent();
                 String text = textField.getText();
+
                 if (isValidString(text)) {
                     return super.stopCellEditing();
                 } else {
-                    // Show a warning if the final string is not valid
-                    System.out.println("bee");
+                    System.err.println("string no válido");
                     return false;
                 }
+
             } catch (Exception ex) {
                 return false;
             }
