@@ -45,18 +45,13 @@ public class DBConexion {
             Statement st = con.createStatement();
             ResultSet rs = st.executeQuery("SELECT * FROM almacen WHERE tipo = '" + tipo + "'");
 
-//            if(rs != null){
-//                System.out.println("consulta realizada");
-//            }
-
             while(rs.next()){
 
                 String [] fila = {rs.getString("ID"), rs.getString("etiqueta_AEMet"),
                         rs.getString("denominación"), rs.getString("cod_fabricante"), rs.getString("cantidad"), rs.getString("fecha_rec"),
-                        rs.getString("fecha_mod"), rs.getString("tipo")};
+                        rs.getString("fecha_mod"), rs.getString("detalles"), rs.getString("tipo")};
                 data.add(fila);
 
-//                System.out.println("Fila 1: " + Arrays.toString(fila));
             }
 
             st.close();
@@ -84,6 +79,37 @@ public class DBConexion {
         return tipos;
     }
 
+    public static void añadirFilas(String tipo, DefaultTableModel modelo) throws SQLException {
+
+        ArrayList<String[]> row = new ArrayList<>();
+        for(int f = 0 ; f < modelo.getRowCount() ; f++){
+
+            ArrayList<String> campo = new ArrayList<>();
+
+            for(int c = 0 ; c < modelo.getColumnCount()-1 ; c++){
+
+                System.out.println(modelo.getValueAt(f, c));
+                if(modelo.getValueAt(f, c) != null) campo.add(modelo.getValueAt(f, c).toString());
+                else campo.add(null);
+
+            }
+
+            String[] k = campo.toArray(new String[campo.size()]);
+            row.add(k);
+        }
+
+        for(String[] fila : row){
+
+            PreparedStatement ps = con.prepareStatement("INSERT INTO almacen VALUES (?, ?, ?, ?, ?, ?, ?, ?, '" + tipo + "')");
+            for(int i = 0 ; i < fila.length ; i++){
+
+                ps.setString(i+1, fila[i]);
+            }
+            ps.executeUpdate();
+
+        }
+    }
+
     public void updateTabla(int fila,int columna, String nuevoValor, String tipo){
 
         PreparedStatement pst = null;
@@ -95,7 +121,7 @@ public class DBConexion {
                     " WHERE table_name = 'almacen' AND ordinal_position = " + (columna + 1) + ";");
 
             Statement st2 = con.createStatement();
-            ResultSet rs2 = st2.executeQuery("SELECT * FROM almacen WHERE id = " + fila);
+            ResultSet rs2 = st2.executeQuery("SELECT * FROM almacen WHERE id = " + fila + " AND tipo = " + tipo);
 
             rs.next();
 
@@ -110,7 +136,7 @@ public class DBConexion {
             } else {
 
                 Statement st3 = con.createStatement();
-                st3.executeUpdate("INSERT INTO almacen VALUES (" + fila + ", null, null, null, null, null, null, '" + tipo + "')");
+                st3.executeUpdate("INSERT INTO almacen VALUES (" + fila + ", null, null, null, null, null, null, null, '" + tipo + "')");
 
                 pst = con.prepareStatement("UPDATE almacen SET " + rs.getString("column_name") + " = ? WHERE ID = "
                         + fila);
@@ -123,11 +149,10 @@ public class DBConexion {
         }catch (SQLException e){
 
             JOptionPane.showMessageDialog(null, "Formato invalido");
-            System.err.println(e);
-//            e.printStackTrace();
+            e.printStackTrace();
 
         } finally {
-            // Cerrar la conexión y el statement
+
             try {
                 if (pst != null) pst.close();
 
@@ -160,7 +185,7 @@ public class DBConexion {
                 if(modelo.getValueAt(f, c) != null) campo.add(modelo.getValueAt(f, c).toString());
                 else campo.add(null);
 
-                System.out.println(modelo.getValueAt(f, c));
+//                System.out.println(modelo.getValueAt(f, c));
             }
 
             String k[] = campo.toArray(new String[campo.size()]);
@@ -171,8 +196,13 @@ public class DBConexion {
         for(String[] fila : row){
 
 //            System.out.println("INSERT INTO almacen VALUES ('" + fila[0] + "', '" + fila[1] + "', '" + fila[2] + "', '" + fila[3] + "', '" + fila[4] + "', '" + fila[5] + "', '" + fila[6] + "', '" + tipo + "')");
-            Statement st = con.createStatement();
-            st.executeUpdate("INSERT INTO almacen VALUES ('" + fila[0] + "', " + fila[1] + ", '" + fila[2] + "', '" + fila[3] + "', " + fila[4] + ", " + fila[5] + ", " + fila[6] + ", '" + tipo + "')");
+            PreparedStatement ps = con.prepareStatement("INSERT INTO almacen VALUES (?, ?, ?, ?, ?, ?, ?, ?, '" + tipo + "')");
+            for(int i = 0 ; i < fila.length ; i++){
+
+                ps.setString(i+1, fila[i]);
+            }
+            ps.executeUpdate();
+
         }
 
         JOptionPane.showMessageDialog(null, "Base de Datos actualizada correctamente");

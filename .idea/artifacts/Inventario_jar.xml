@@ -11,6 +11,7 @@
       <element id="extracted-dir" path="$PROJECT_DIR$/../../Dependencias/poi-3.7-20101029.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$PROJECT_DIR$/../../Dependencias/poi-5.2.5.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$PROJECT_DIR$/../../Dependencias/forms_rt-7.0.3.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/lib/mariadb-java-client-3.3.2.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>

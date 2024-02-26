@@ -372,15 +372,6 @@ public class GUI extends JFrame {
 
 
         botonPrueba.addActionListener(e -> {
-
-            try {
-
-                prueba();
-
-            } catch (SQLException ex) {
-                throw new RuntimeException(ex);
-            }
-
         });
 
         // Agregar los paneles al panel principal
@@ -499,8 +490,8 @@ public class GUI extends JFrame {
         botonExportarT.setText("Exportar todo");
         panelBotones.add(botonExportarT, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         botonPrueba = new JButton();
-        botonPrueba.setText("Probar");
-        panelBotones.add(botonPrueba, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        botonPrueba.setText("Plantilla");
+        panelBotones.add(botonPrueba, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         panelBusqueda = new JPanel();
         panelBusqueda.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
         panelPrincipal.add(panelBusqueda, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
@@ -939,21 +930,10 @@ public class GUI extends JFrame {
         if (confirm != 1) {
 
             String tipo = pestanas.getTitleAt(pestanas.getSelectedIndex());
+            it = 0;
             DBConexion.sobreescribirTabla(tipo, (DefaultTableModel) tabla.getModel());
 
         }
 
-    }
-
-    public void prueba() throws SQLException {
-
-        int confirm = JOptionPane.showConfirmDialog(this, "¿Desea sobreescribir los datos actuales?");
-        DefaultTableModel modelo = (DefaultTableModel) tabla.getModel();
-
-        if (confirm != 1) {
-
-            DBConexion.sobreescribirTabla(pestanas.getTitleAt(pestanas.getSelectedIndex()), modelo);
-
-        }
     }
 }

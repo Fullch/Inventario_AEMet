@@ -23,6 +23,8 @@ import javax.swing.table.*;
 import javax.swing.text.*;
 import java.awt.*;
 import java.awt.Font;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,11 +36,12 @@ import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.List;
 
 // TODO:
-//  -Nada por ahora :)
+//  -Si el tipo no existe crearlo en la base de datos.
 
 public class Otra extends JFrame {
 
@@ -50,6 +53,7 @@ public class Otra extends JFrame {
     private JButton botonPrueba;
     private JPanel panelPrincipal;
 
+    static DBConexion con;
     static int it = 0;
     static ArrayList<String> tipos = new ArrayList<>();
     static ArrayList<DefaultTableModel> modeloTablas = new ArrayList<>();
@@ -59,20 +63,21 @@ public class Otra extends JFrame {
 
         $$$setupUI$$$();
 
+        Otra.con = con;
+
         // Configuración de la ventana
         setTitle("INVENTARIO");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1000, 1000);
         setLocationRelativeTo(null);
         setVisible(true);
-        setResizable(false);
 
         tipos = DBConexion.iniciarTipos();
 
         crearTablas(con);
-        pestanas.setSelectedIndex(0);
 
         pestanas.addTab("+", null);
+        pestanas.setSelectedIndex(0);
 
         pestanas.addChangeListener(new ChangeListener() {
             @Override
@@ -187,6 +192,7 @@ public class Otra extends JFrame {
     private void crearTabla(String tipo, DBConexion con) {
 
         TableRowSorter<TableModel> sorter;
+
         DefaultTableModel modeloTabla = new DefaultTableModel(){
 
             @Override
@@ -199,103 +205,116 @@ public class Otra extends JFrame {
 
         modeloTablas.add(modeloTabla);
 
-        try {
+        modeloTabla.addColumn("ID");
+        modeloTabla.addColumn("Etiqueta AEMet");
+        modeloTabla.addColumn("Denominación");
+        modeloTabla.addColumn("Código Fabricante");
+        modeloTabla.addColumn("Cantidad");
+        modeloTabla.addColumn("Fecha Recepción");
+        modeloTabla.addColumn("Fecha Modificación");
+        modeloTabla.addColumn("Detalles");
+        modeloTabla.addColumn("");
 
-            modeloTabla.addColumn("ID");
-            modeloTabla.addColumn("Etiqueta AEMet");
-            modeloTabla.addColumn("Denominación");
-            modeloTabla.addColumn("Código Fabricante");
-            modeloTabla.addColumn("Cantidad");
-            modeloTabla.addColumn("Fecha Recepción");
-            modeloTabla.addColumn("Fecha Modificación");
-            modeloTabla.addColumn("");
+        JTable tabla = new JTable(modeloTabla);
+        tabla.setFont(new Font("", Font.PLAIN, 16));
+        tabla.getTableHeader().setFont(new Font("", Font.BOLD, 16));
 
-            JTable tabla = new JTable(modeloTabla);
-            tabla.setFont(new Font("", Font.PLAIN, 16));
-            tabla.getTableHeader().setFont(new Font("", Font.BOLD, 16));
+        tabla.getColumnModel().getColumn(0).setPreferredWidth(5);
 
-            tabla.getColumnModel().getColumn(1).setCellEditor(new NumberEditor());
-            tabla.getColumnModel().getColumn(4).setCellEditor(new NumberEditor());
+        tabla.getColumnModel().getColumn(1).setPreferredWidth(25);
+        tabla.getColumnModel().getColumn(1).setCellEditor(new NumberEditor());
 
-            tabla.getColumnModel().getColumn(3).setCellEditor(new CustomStringEditor());
+        tabla.getColumnModel().getColumn(4).setPreferredWidth(5);
+        tabla.getColumnModel().getColumn(4).setCellEditor(new NumberEditor());
 
-            CalendarioRenderer cr = new CalendarioRenderer();
-            CalendarioEditor ce = new CalendarioEditor();
+//            tabla.getColumnModel().getColumn(3).setCellEditor(new CustomStringEditor());
 
-            tabla.getColumnModel().getColumn(5).setCellRenderer(cr);
-            tabla.getColumnModel().getColumn(5).setCellEditor(ce);
-            tabla.getColumnModel().getColumn(6).setCellRenderer(cr);
-            tabla.getColumnModel().getColumn(6).setCellEditor(ce);
+        CalendarioRenderer cr = new CalendarioRenderer();
+        CalendarioEditor ce = new CalendarioEditor();
 
-            tabla.getColumnModel().getColumn(7).setCellRenderer(new ButtonRenderer());
-            tabla.getColumnModel().getColumn(7).setCellEditor(new ButtonEditor(tabla));
+        tabla.getColumnModel().getColumn(5).setCellRenderer(cr);
+        tabla.getColumnModel().getColumn(5).setCellEditor(ce);
+        tabla.getColumnModel().getColumn(6).setCellRenderer(cr);
+        tabla.getColumnModel().getColumn(6).setCellEditor(ce);
 
-            sorter = new TableRowSorter<>(modeloTabla);
-            tabla.setRowSorter(sorter);
+        tabla.getColumnModel().getColumn(8).setCellRenderer(new ButtonRenderer());
+        tabla.getColumnModel().getColumn(8).setCellEditor(new ButtonEditor(tabla));
 
-            tabla.setRowHeight(25);
+        sorter = new TableRowSorter<>(modeloTabla);
+        sorter.setComparator(0, Comparator.comparingInt(o -> Integer.parseInt(o.toString())));
+        sorter.setComparator(1, Comparator.comparingInt(o -> Integer.parseInt(o.toString())));
+        sorter.setComparator(4, Comparator.comparingInt(o -> Integer.parseInt(o.toString())));
+        sorter.setComparator(5, Comparator.comparing(o -> {
+            try {
+                return LocalDate.parse(o.toString(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+            } catch (DateTimeParseException e) {
+                e.printStackTrace();
+                return LocalDate.MIN;
+            }
+        }));
+        tabla.setRowSorter(sorter);
 
-            tablas.add(tabla);
+        tabla.setRowHeight(25);
 
-            it = refrescarTablas();
+        tablas.add(tabla);
 
-            JScrollPane scrollPane = new JScrollPane(tabla);
-            JPanel panelTabla = new JPanel(new MigLayout("fill"));
-            panelTabla.setLayout(new MigLayout("wrap, fill"));
-            panelTabla.add(scrollPane, "grow");
+        it = refrescarTablas();
 
-            pestanas.insertTab(tipo, null, panelTabla, null, tipos.indexOf(tipo));
+        JScrollPane scrollPane = new JScrollPane(tabla);
+        JPanel panelTabla = new JPanel(new MigLayout("fill"));
+        panelTabla.setLayout(new MigLayout("wrap, fill"));
+        panelTabla.add(scrollPane, "grow");
 
-            tabla.repaint();
+        pestanas.insertTab(tipo, null, panelTabla, null, tipos.indexOf(tipo));
 
-            modeloTabla.addTableModelListener(e -> {
+        tabla.repaint();
 
-                if (e.getType() == TableModelEvent.UPDATE) {
+        tabla.addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                Point p = e.getPoint();
+                int row = tabla.rowAtPoint(p);
+                int col = tabla.columnAtPoint(p);
+                if(tabla.getValueAt(row, col) != null) tabla.setToolTipText(tabla.getValueAt(row, col).toString());
+            }
+        });
 
-                    try{
-                        int fila = e.getFirstRow();
-                        int columna = e.getColumn();
-                        int id = Integer.parseInt((String) tabla.getValueAt(fila, 0));
+        modeloTabla.addTableModelListener(e -> {
 
-                        if (columna != 6) {
+            if (e.getType() == TableModelEvent.UPDATE) {
 
-                            if(columna == 3){
+                try{
+                    int fila = e.getFirstRow();
+                    int columna = e.getColumn();
+                    int id = Integer.parseInt((String) tabla.getValueAt(fila, 0));
 
+                    if (columna != 8) {
 
-                            }
+                        String nuevoValor;
 
-                            String nuevoValor;
+                        if(modeloTabla.getValueAt(fila, columna) != null){
 
-                            if(modeloTabla.getValueAt(fila, columna) != null){
+                            nuevoValor = modeloTabla.getValueAt(fila, columna).toString();
 
-                                nuevoValor = modeloTabla.getValueAt(fila, columna).toString();
+                        }else {
 
-                            }else {
-
-                                nuevoValor = null;
-                            }
-
-                            con.updateTabla(id, columna, nuevoValor, tipos.get(pestanas.getSelectedIndex()));
-
-                            try {
-                                it = refrescarTablas();
-                            } catch (SQLException ex) {
-                                throw new RuntimeException(ex);
-                            }
+                            nuevoValor = null;
                         }
-                    }catch(Exception ex){
 
-                        JOptionPane.showMessageDialog(null, "Formato invalido");
-                        System.err.println(ex);
-//                            ex.printStackTrace();
+                        con.updateTabla(id, columna, nuevoValor, tipos.get(pestanas.getSelectedIndex()));
+
+                        it = refrescarTablas();
+
                     }
+                }catch(Exception ex){
+
+                    JOptionPane.showMessageDialog(null, "Formato invalido");
+                    System.err.println(ex);
+//                            ex.printStackTrace();
                 }
+            }
 
-            });
-
-        } catch (SQLException ex) {
-            throw new RuntimeException(ex);
-        }
+        });
 
     }
 
@@ -307,9 +326,10 @@ public class Otra extends JFrame {
         }
     }
 
-    private static int refrescarTablas() throws SQLException {
+    private static int refrescarTablas(){
 
         int i = 0;
+        it = 0;
 
         for (DefaultTableModel modeloTabla : modeloTablas) {
 
@@ -320,11 +340,16 @@ public class Otra extends JFrame {
         return it;
     }
 
-    private static int refrescarTabla(DefaultTableModel modeloTabla, String tipo, int it) throws SQLException {
+    private static int refrescarTabla(DefaultTableModel modeloTabla, String tipo, int it){
 
         modeloTabla.setRowCount(0);
 
-        ArrayList<String[]> arrayListTabla = new ArrayList<>(DBConexion.getData(tipo));
+        ArrayList<String[]> arrayListTabla = null;
+        try {
+            arrayListTabla = new ArrayList<>(DBConexion.getData(tipo));
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
 
         if (!arrayListTabla.isEmpty()) {
 
@@ -340,6 +365,7 @@ public class Otra extends JFrame {
                     String formattedDate = parsed.format(outputFormatter);
                     fila[5] = formattedDate;
                 }
+
                 if (fila[6] != null) {
 
                     LocalDate parsed = LocalDate.parse(fila[6], inputFormat);
@@ -352,14 +378,14 @@ public class Otra extends JFrame {
                     it = Integer.parseInt(fila[0]);
                 }
 
-                fila[7] = "";
+                fila[8] = "";
 
                 modeloTabla.addRow(fila);
             }
 
         } else {
 
-            it = 0;
+//            it = 0;
         }
 
         // Esto hace falta porque el addRow requiere un array aunque sea vacío
@@ -578,7 +604,7 @@ public class Otra extends JFrame {
                 tablaComp.addAll(DBConexion.getData(tipo));
             }
 
-            String[] cabezera = {"ID", "Etiqueta AEMet", "Denominación", "Código Fabricante", "Cantidad", "Fecha Recepción", "Fecha Modificación", "Tipo"};
+            String[] cabezera = {"ID", "Etiqueta AEMet", "Denominación", "Código Fabricante", "Cantidad", "Fecha Recepción", "Fecha Modificación", "Detalles", "Tipo"};
 
             int f = 0, c = 0;
             for (String[] fila : tablaComp) {
@@ -640,8 +666,7 @@ public class Otra extends JFrame {
                 Sheet sheet = workbook.getSheetAt(0);
 
                 Iterator<Row> rowIterator = sheet.iterator();
-                int it = 0;
-                String[] cabezeraArr = {"ID", "Etiqueta AEMet", "Denominación", "Código Fabricante", "Cantidad", "Fecha Recepción", "Fecha Modificación", "Tipo"};
+                String[] cabezeraArr = {"ID", "Etiqueta AEMet", "Denominación", "Código Fabricante", "Cantidad", "Fecha Recepción", "Fecha Modificación", "Detalles", "Tipo"};
                 ArrayList<String> cabezera = new ArrayList<>(List.of(cabezeraArr));
 
                 while (rowIterator.hasNext()) {
@@ -651,18 +676,22 @@ public class Otra extends JFrame {
                     for (int i = 0; i < row.getLastCellNum()-1; i++) {
                         Cell cell = row.getCell(i, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
 
-                        switch (cell.getCellType()) {
-                            case STRING:
-                                rowData[i] = cell.getStringCellValue();
-                                break;
-                            case NUMERIC:
-                                rowData[i] = (int) cell.getNumericCellValue();
-                                break;
-                            case BOOLEAN:
-                                rowData[i] = cell.getBooleanCellValue();
-                                break;
-                            default:
-                                rowData[i] = null;
+                        if(i == 0 && cell == null) rowData[i] = it;
+                        else {
+
+                            switch (cell.getCellType()) {
+                                case STRING:
+                                    rowData[i] = cell.getStringCellValue();
+                                    break;
+                                case NUMERIC:
+                                    rowData[i] = (int) cell.getNumericCellValue();
+                                    break;
+                                case BOOLEAN:
+                                    rowData[i] = cell.getBooleanCellValue();
+                                    break;
+                                default:
+                                    rowData[i] = null;
+                            }
                         }
                     }
 
@@ -679,13 +708,30 @@ public class Otra extends JFrame {
             }
         }
 
-        int confirm = JOptionPane.showConfirmDialog(this, "¿Desea sobreescribir los datos actuales?");
+        String[] opciones = {"Sobreescribir", "Añadir", "Cancelar"};
 
-        if (confirm != 1) {
+        int decision = JOptionPane.showOptionDialog(null, "Que desea hacer con los datos actuales?", "titulo", JOptionPane.YES_NO_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE, null, opciones, opciones[2]);
 
-            String tipo = pestanas.getTitleAt(pestanas.getSelectedIndex());
-            DBConexion.sobreescribirTabla(tipo, model);
+        String tipo = pestanas.getTitleAt(pestanas.getSelectedIndex());
 
+        switch (decision) {
+            case JOptionPane.YES_OPTION:
+                DBConexion.sobreescribirTabla(tipo, model);
+                refrescarTablas();
+                break;
+
+            case JOptionPane.NO_OPTION:
+                DBConexion.añadirFilas(tipo, model);
+                refrescarTablas();
+                break;
+
+            case JOptionPane.CANCEL_OPTION, JOptionPane.CLOSED_OPTION:
+                refrescarTablas();
+                break;
+
+            default:
+                break;
         }
     }
 
@@ -732,11 +778,33 @@ public class Otra extends JFrame {
         }
     }
 
+    public static class DateLabelFormatter extends JFormattedTextField.AbstractFormatter {
+
+        private final String datePattern = "dd-MM-yyyy";
+        private final SimpleDateFormat dateFormatter = new SimpleDateFormat(datePattern);
+
+        @Override
+        public Object stringToValue(String text) throws ParseException {
+            return dateFormatter.parseObject(text);
+        }
+
+        @Override
+        public String valueToString(Object value) {
+            if (value != null) {
+                Calendar cal = (Calendar) value;
+                return dateFormatter.format(cal.getTime());
+            }
+
+            return "";
+        }
+
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////
                                     // Custom cells //
     //////////////////////////////////////////////////////////////////////////////////////
 
-    // Clase que sólo permite el uso de números en las celdas correspondientes
+    // Clase editor que sólo permite el uso de números en las celdas correspondientes
     static class NumberEditor extends DefaultCellEditor {
 
         public NumberEditor() {
@@ -811,7 +879,7 @@ public class Otra extends JFrame {
         public CalendarioRenderer() {
             UtilDateModel model = new UtilDateModel();
             JDatePanelImpl datePanel = new JDatePanelImpl(model);
-            datePicker = new JDatePickerImpl(datePanel, new Interfaz.DateLabelFormatter());
+            datePicker = new JDatePickerImpl(datePanel, new Otra.DateLabelFormatter());
         }
 
         @Override
@@ -823,7 +891,7 @@ public class Otra extends JFrame {
                 model.setValue((Date) value);
 
                 // Crea un nuevo JDatePicker con el modelo
-                return new JDatePickerImpl(new JDatePanelImpl(model), new Interfaz.DateLabelFormatter());
+                return new JDatePickerImpl(new JDatePanelImpl(model), new Otra.DateLabelFormatter());
 
             } else {
 
@@ -841,7 +909,7 @@ public class Otra extends JFrame {
         public CalendarioEditor() {
             UtilDateModel model = new UtilDateModel();
             JDatePanelImpl datePanel = new JDatePanelImpl(model);
-            datePicker = new JDatePickerImpl(datePanel, new Interfaz.DateLabelFormatter());
+            datePicker = new JDatePickerImpl(datePanel, new Otra.DateLabelFormatter());
 
             datePicker.addActionListener(e -> stopCellEditing());
         }
@@ -940,11 +1008,7 @@ public class Otra extends JFrame {
                 int fila = Integer.parseInt(parts[2]);
 
                 ((DefaultTableModel) table.getModel()).removeRow(fila);
-                try {
-                    it = refrescarTablas();
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
+                it = refrescarTablas();
             }
 
             isPushed = false;
@@ -1032,4 +1096,5 @@ public class Otra extends JFrame {
             }
         }
     }
+
 }
