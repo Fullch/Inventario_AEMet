@@ -79,22 +79,25 @@ public class DBConexion {
         return tipos;
     }
 
-    public static void añadirFilas(String tipo, DefaultTableModel modelo) throws SQLException {
+    public static void añadirFilas(int it, String tipo, DefaultTableModel modelo) throws SQLException {
 
         ArrayList<String[]> row = new ArrayList<>();
+        it++;
         for(int f = 0 ; f < modelo.getRowCount() ; f++){
 
-            ArrayList<String> campo = new ArrayList<>();
+            ArrayList<String> campos = new ArrayList<>();
 
-            for(int c = 0 ; c < modelo.getColumnCount()-1 ; c++){
+            campos.add(String.valueOf(it++));
 
-                System.out.println(modelo.getValueAt(f, c));
-                if(modelo.getValueAt(f, c) != null) campo.add(modelo.getValueAt(f, c).toString());
-                else campo.add(null);
+            for(int c = 1 ; c < modelo.getColumnCount()-1 ; c++){
 
+                if(modelo.getValueAt(f, c) != null) campos.add(modelo.getValueAt(f, c).toString());
+                else campos.add(null);
+
+//                System.out.println("Añadir campo " + modelo.getValueAt(f, c));
             }
 
-            String[] k = campo.toArray(new String[campo.size()]);
+            String[] k = campos.toArray(new String[campos.size()]);
             row.add(k);
         }
 
@@ -102,7 +105,6 @@ public class DBConexion {
 
             PreparedStatement ps = con.prepareStatement("INSERT INTO almacen VALUES (?, ?, ?, ?, ?, ?, ?, ?, '" + tipo + "')");
             for(int i = 0 ; i < fila.length ; i++){
-
                 ps.setString(i+1, fila[i]);
             }
             ps.executeUpdate();
@@ -121,7 +123,7 @@ public class DBConexion {
                     " WHERE table_name = 'almacen' AND ordinal_position = " + (columna + 1) + ";");
 
             Statement st2 = con.createStatement();
-            ResultSet rs2 = st2.executeQuery("SELECT * FROM almacen WHERE id = " + fila + " AND tipo = " + tipo);
+            ResultSet rs2 = st2.executeQuery("SELECT * FROM almacen WHERE id = " + fila + " AND tipo = '" + tipo + "'");
 
             rs.next();
 
@@ -168,7 +170,7 @@ public class DBConexion {
         pst.executeUpdate();
     }
 
-    public static void sobreescribirTabla(String tipo, DefaultTableModel modelo) throws SQLException {
+    public static void sobreescribirTabla(int it, String tipo, DefaultTableModel modelo) throws SQLException {
 
         // Borramos los campos de este tipo
         PreparedStatement pst = con.prepareStatement("DELETE FROM almacen WHERE tipo = '" + tipo + "'");
@@ -176,19 +178,23 @@ public class DBConexion {
 
         // Creamos los campos necesarios del mismo tipo
         ArrayList<String[]> row = new ArrayList<>();
+        it++;
+
         for(int f = 0 ; f < modelo.getRowCount() ; f++){
 
-            ArrayList<String> campo = new ArrayList<>();
+            ArrayList<String> campos = new ArrayList<>();
 
-            for(int c = 0 ; c < modelo.getColumnCount()-1 ; c++){
+            campos.add(String.valueOf(it++));
+            System.out.println("Añadir filas " + it);
 
-                if(modelo.getValueAt(f, c) != null) campo.add(modelo.getValueAt(f, c).toString());
-                else campo.add(null);
+            for(int c = 1 ; c < modelo.getColumnCount()-1 ; c++){
 
-//                System.out.println(modelo.getValueAt(f, c));
+                if(modelo.getValueAt(f, c) != null) campos.add(modelo.getValueAt(f, c).toString());
+                else campos.add(null);
+
             }
 
-            String k[] = campo.toArray(new String[campo.size()]);
+            String k[] = campos.toArray(new String[campos.size()]);
             row.add(k);
         }
 

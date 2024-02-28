@@ -931,7 +931,7 @@ public class GUI extends JFrame {
 
             String tipo = pestanas.getTitleAt(pestanas.getSelectedIndex());
             it = 0;
-            DBConexion.sobreescribirTabla(tipo, (DefaultTableModel) tabla.getModel());
+            DBConexion.sobreescribirTabla(it, tipo, (DefaultTableModel) tabla.getModel());
 
         }
 

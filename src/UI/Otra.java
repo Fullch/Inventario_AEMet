@@ -41,7 +41,7 @@ import java.util.*;
 import java.util.List;
 
 // TODO:
-//  -Si el tipo no existe crearlo en la base de datos.
+//  -Nada :^)
 
 public class Otra extends JFrame {
 
@@ -50,8 +50,10 @@ public class Otra extends JFrame {
     private JButton botonExportar;
     private JButton botonImportar;
     private JButton botonExportarT;
-    private JButton botonPrueba;
+    private JButton botonPlantilla;
     private JPanel panelPrincipal;
+    private JPanel panelBotones;
+    private JPanel panelBusqueda;
 
     static DBConexion con;
     static int it = 0;
@@ -83,19 +85,19 @@ public class Otra extends JFrame {
             @Override
             public void stateChanged(ChangeEvent e) {
 
-                if(Objects.equals(pestanas.getTitleAt(pestanas.getSelectedIndex()), "+")){
+                if (Objects.equals(pestanas.getTitleAt(pestanas.getSelectedIndex()), "+")) {
 
                     pestanas.removeChangeListener(this);
 
                     String tipoElegido = JOptionPane.showInputDialog(null, "¿Cómo desea que se llame la nueva pestaña?", "Crear nueva pestaña", JOptionPane.PLAIN_MESSAGE);
 
-                    if(tipoElegido != null && !tipoElegido.trim().isEmpty() && !Objects.equals(tipoElegido, "+")){
+                    if (tipoElegido != null && !tipoElegido.trim().isEmpty() && !Objects.equals(tipoElegido, "+")) {
 
                         tipos.add(tipoElegido);
                         crearTabla(tipoElegido, con);
-                        pestanas.setSelectedIndex(pestanas.getTabCount()-2);
+                        pestanas.setSelectedIndex(pestanas.getTabCount() - 2);
 
-                    }else{
+                    } else {
 
                         JOptionPane.showMessageDialog(null, "Título inválido", "Error", JOptionPane.ERROR_MESSAGE);
                     }
@@ -124,7 +126,7 @@ public class Otra extends JFrame {
 
             int selectedIndex = pestanas.getSelectedIndex();
 
-            if(selectedIndex != -1){
+            if (selectedIndex != -1) {
 
                 try {
                     exportarExcel(tablas.get(selectedIndex));
@@ -143,10 +145,10 @@ public class Otra extends JFrame {
 
             int selectedIndex = pestanas.getSelectedIndex();
 
-            if(selectedIndex != -1){
+            if (selectedIndex != -1) {
 
                 try {
-                    importarExcel(tablas.get(selectedIndex));
+                    importarExcel();
                 } catch (SQLException ex) {
                     throw new RuntimeException(ex);
                 }
@@ -168,10 +170,10 @@ public class Otra extends JFrame {
         });
 
         // Botón de prueba
-        botonPrueba.setFont(new Font("Arial", Font.PLAIN, 16));
-        botonPrueba.setPreferredSize(new Dimension(150, 50));
+        botonPlantilla.setFont(new Font("Arial", Font.PLAIN, 16));
+        botonPlantilla.setPreferredSize(new Dimension(150, 50));
 
-        botonPrueba.addActionListener(e -> {
+        botonPlantilla.addActionListener(e -> {
 
             descargarPlantilla();
         });
@@ -180,24 +182,24 @@ public class Otra extends JFrame {
 
         // Una última vez para que queden bien antes de poder interactuar, después se realizará
         // de forma automática
-        it = refrescarTablas();
+//        it = refrescarTablas();
 
         setVisible(true);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
-                                    // Métodos tablas //
+    // Métodos tablas //
     //////////////////////////////////////////////////////////////////////////////////////
 
     private void crearTabla(String tipo, DBConexion con) {
 
         TableRowSorter<TableModel> sorter;
 
-        DefaultTableModel modeloTabla = new DefaultTableModel(){
+        DefaultTableModel modeloTabla = new DefaultTableModel() {
 
             @Override
             public boolean isCellEditable(int row, int column) {
-                if(column == 0) return false;
+                if (column == 0) return false;
                 return true;
             }
 
@@ -258,6 +260,7 @@ public class Otra extends JFrame {
 
         tablas.add(tabla);
 
+//        System.out.println("Refrescar de crear");
         it = refrescarTablas();
 
         JScrollPane scrollPane = new JScrollPane(tabla);
@@ -275,7 +278,7 @@ public class Otra extends JFrame {
                 Point p = e.getPoint();
                 int row = tabla.rowAtPoint(p);
                 int col = tabla.columnAtPoint(p);
-                if(tabla.getValueAt(row, col) != null) tabla.setToolTipText(tabla.getValueAt(row, col).toString());
+                if (tabla.getValueAt(row, col) != null) tabla.setToolTipText(tabla.getValueAt(row, col).toString());
             }
         });
 
@@ -283,7 +286,7 @@ public class Otra extends JFrame {
 
             if (e.getType() == TableModelEvent.UPDATE) {
 
-                try{
+                try {
                     int fila = e.getFirstRow();
                     int columna = e.getColumn();
                     int id = Integer.parseInt((String) tabla.getValueAt(fila, 0));
@@ -292,21 +295,22 @@ public class Otra extends JFrame {
 
                         String nuevoValor;
 
-                        if(modeloTabla.getValueAt(fila, columna) != null){
+                        if (modeloTabla.getValueAt(fila, columna) != null) {
 
                             nuevoValor = modeloTabla.getValueAt(fila, columna).toString();
 
-                        }else {
+                        } else {
 
                             nuevoValor = null;
                         }
 
                         con.updateTabla(id, columna, nuevoValor, tipos.get(pestanas.getSelectedIndex()));
 
+//                        System.out.println("Refrescar update");
                         it = refrescarTablas();
 
                     }
-                }catch(Exception ex){
+                } catch (Exception ex) {
 
                     JOptionPane.showMessageDialog(null, "Formato invalido");
                     System.err.println(ex);
@@ -320,27 +324,37 @@ public class Otra extends JFrame {
 
     private void crearTablas(DBConexion con) {
 
-        for(String tipo : tipos){
+        for (String tipo : tipos) {
 
             crearTabla(tipo, con);
         }
     }
 
-    private static int refrescarTablas(){
+    private static int refrescarTablas() {
 
         int i = 0;
         it = 0;
 
         for (DefaultTableModel modeloTabla : modeloTablas) {
 
-            it = refrescarTabla(modeloTabla, tipos.get(i), it);
+            it = refrescarTabla(modeloTabla, tipos.get(i));
             i++;
+        }
+
+        for (DefaultTableModel modeloTabla : modeloTablas) {
+
+            // Esto hace falta porque el addRow requiere un array aunque sea vacío
+            ArrayList<String[]> arrayVacio = new ArrayList<>();
+            String[] vacio = {it + 1 + ""};
+            arrayVacio.add(vacio);
+            modeloTabla.addRow(arrayVacio.getFirst());
+
         }
 
         return it;
     }
 
-    private static int refrescarTabla(DefaultTableModel modeloTabla, String tipo, int it){
+    private static int refrescarTabla(DefaultTableModel modeloTabla, String tipo) {
 
         modeloTabla.setRowCount(0);
 
@@ -358,6 +372,7 @@ public class Otra extends JFrame {
 
             for (String[] fila : arrayListTabla) {
 
+                //Damos nuestro formato de fecha a las columnas correspondientes
                 if (fila[5] != null) {
 
                     LocalDate parsed = LocalDate.parse(fila[5], inputFormat);
@@ -374,8 +389,17 @@ public class Otra extends JFrame {
                     fila[6] = formattedDate;
                 }
 
-                if (Integer.parseInt(fila[0]) > it) {
-                    it = Integer.parseInt(fila[0]);
+                //Asignamos el valor de it
+                if (fila[0] != null) {
+
+                    if (Integer.parseInt(fila[0]) > it) {
+                        it = Integer.parseInt(fila[0]);
+                    }
+
+                } else {
+
+                    fila[0] = String.valueOf(it + 1);
+                    it++;
                 }
 
                 fila[8] = "";
@@ -383,22 +407,15 @@ public class Otra extends JFrame {
                 modeloTabla.addRow(fila);
             }
 
-        } else {
-
-//            it = 0;
         }
 
-        // Esto hace falta porque el addRow requiere un array aunque sea vacío
-        ArrayList<String[]> arrayVacio = new ArrayList<>();
-        String[] vacio = {it + 1 + ""};
-        arrayVacio.add(vacio);
-        modeloTabla.addRow(arrayVacio.getFirst());
+//        System.out.println("Refrescar tabla " + it);
 
         return it;
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
-                                // Métodos para la interfaz //
+    // Métodos para la interfaz //
     //////////////////////////////////////////////////////////////////////////////////////
 
     /**
@@ -415,7 +432,7 @@ public class Otra extends JFrame {
         Font pestanasFont = this.$$$getFont$$$(null, -1, 20, pestanas.getFont());
         if (pestanasFont != null) pestanas.setFont(pestanasFont);
         panelPrincipal.add(pestanas, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(200, 200), null, 0, false));
-        JPanel panelBotones = new JPanel();
+        panelBotones = new JPanel();
         panelBotones.setLayout(new GridLayoutManager(2, 3, new Insets(20, 0, 20, 0), -1, -1));
         panelPrincipal.add(panelBotones, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
         botonExportar = new JButton();
@@ -427,10 +444,10 @@ public class Otra extends JFrame {
         botonExportarT = new JButton();
         botonExportarT.setText("Exportar todo");
         panelBotones.add(botonExportarT, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        botonPrueba = new JButton();
-        botonPrueba.setText("Probar");
-        panelBotones.add(botonPrueba, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        JPanel panelBusqueda = new JPanel();
+        botonPlantilla = new JButton();
+        botonPlantilla.setText("Plantilla");
+        panelBotones.add(botonPlantilla, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        panelBusqueda = new JPanel();
         panelBusqueda.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
         panelPrincipal.add(panelBusqueda, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
         campoBusqueda = new JTextField();
@@ -469,7 +486,7 @@ public class Otra extends JFrame {
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
-                                // Métodos generales //
+    // Métodos generales //
     //////////////////////////////////////////////////////////////////////////////////////
 
     public void exportarExcel(JTable tabla) throws IOException {
@@ -513,7 +530,7 @@ public class Otra extends JFrame {
             estiloCelda.setBorderRight(BorderStyle.valueOf((short) 1));
             estiloCelda.setBorderTop(BorderStyle.valueOf((short) 1));
 
-            for (int f = 0; f < tabla.getRowCount(); f++) {
+            for (int f = 0; f < tabla.getRowCount() - 1; f++) {
                 Row fila = hoja.createRow(f);
                 for (int c = 0; c < tabla.getColumnCount(); c++) {
                     Cell celda = fila.createCell(c);
@@ -526,7 +543,7 @@ public class Otra extends JFrame {
             }
 
             int filaInicio = 1;
-            for (int f = 0; f < tabla.getRowCount(); f++) {
+            for (int f = 0; f < tabla.getRowCount() - 1; f++) {
                 Row fila = hoja.createRow(filaInicio);
                 fila.setHeight((short) 450);
                 filaInicio++;
@@ -540,7 +557,7 @@ public class Otra extends JFrame {
                         celda.setCellValue(Double.parseDouble(tabla.getValueAt(f, c).toString()));
                     } else if (tabla.getValueAt(f, c) instanceof Float) {
                         celda.setCellValue(Float.parseFloat((String) tabla.getValueAt(f, c)));
-                    } else if (tabla.getValueAt(f, c) instanceof String){
+                    } else if (tabla.getValueAt(f, c) instanceof String) {
                         celda.setCellValue(String.valueOf(tabla.getValueAt(f, c)));
                     } else celda.setCellValue("");
                 }
@@ -645,16 +662,28 @@ public class Otra extends JFrame {
         }
     }
 
-    public void importarExcel(JTable tabla) throws SQLException {
+    public void importarExcel() throws SQLException {
 
         JFileChooser chooser = new JFileChooser();
         FileNameExtensionFilter filter = new FileNameExtensionFilter("Archivos de excel", "xls");
         chooser.setFileFilter(filter);
         chooser.setDialogTitle("Seleccionar archivo Excel");
         int userSelection = chooser.showOpenDialog(this);
-        DefaultTableModel model = (DefaultTableModel) tabla.getModel();
+
+        DefaultTableModel model = new DefaultTableModel();
+        model.addColumn("ID");
+        model.addColumn("Etiqueta AEMet");
+        model.addColumn("Denominación");
+        model.addColumn("Código Fabricante");
+        model.addColumn("Cantidad");
+        model.addColumn("Fecha Recepción");
+        model.addColumn("Fecha Modificación");
+        model.addColumn("Detalles");
+        model.addColumn("");
 
         if (userSelection == JFileChooser.APPROVE_OPTION) {
+
+
             File file = chooser.getSelectedFile();
 
             model.setRowCount(0);
@@ -670,13 +699,14 @@ public class Otra extends JFrame {
                 ArrayList<String> cabezera = new ArrayList<>(List.of(cabezeraArr));
 
                 while (rowIterator.hasNext()) {
+
                     Row row = rowIterator.next();
                     Object[] rowData = new Object[row.getLastCellNum()];
 
-                    for (int i = 0; i < row.getLastCellNum()-1; i++) {
+                    for (int i = 0; i < row.getLastCellNum(); i++) {
                         Cell cell = row.getCell(i, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
 
-                        if(i == 0 && cell == null) rowData[i] = it;
+                        if (i == 0 && cell == null) rowData[i] = it;
                         else {
 
                             switch (cell.getCellType()) {
@@ -691,7 +721,9 @@ public class Otra extends JFrame {
                                     break;
                                 default:
                                     rowData[i] = null;
+                                    break;
                             }
+
                         }
                     }
 
@@ -699,7 +731,6 @@ public class Otra extends JFrame {
 
                     if (!coincidenciaCabecera) {
                         model.addRow(rowData);
-                        it++;
                     }
                 }
 
@@ -708,26 +739,36 @@ public class Otra extends JFrame {
             }
         }
 
+
         String[] opciones = {"Sobreescribir", "Añadir", "Cancelar"};
 
         int decision = JOptionPane.showOptionDialog(null, "Que desea hacer con los datos actuales?", "titulo", JOptionPane.YES_NO_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE, null, opciones, opciones[2]);
 
-        String tipo = pestanas.getTitleAt(pestanas.getSelectedIndex());
+        String tipo = String.valueOf(model.getValueAt(0, model.getColumnCount() - 1));
+        System.out.println("Tipo Excel " + tipo);
+
+        if (!tipos.contains(tipo) && tipo != null && !tipo.isEmpty()) {
+            tipos.add(tipo);
+            crearTabla(tipo, con);
+        }
 
         switch (decision) {
             case JOptionPane.YES_OPTION:
-                DBConexion.sobreescribirTabla(tipo, model);
-                refrescarTablas();
+                DBConexion.sobreescribirTabla(it, tipo, model);
+//                System.out.println("Refrescar importar");
+                it = refrescarTablas();
                 break;
 
             case JOptionPane.NO_OPTION:
-                DBConexion.añadirFilas(tipo, model);
-                refrescarTablas();
+                DBConexion.añadirFilas(it, tipo, model);
+//                System.out.println("Refrescar importar");
+                it = refrescarTablas();
                 break;
 
             case JOptionPane.CANCEL_OPTION, JOptionPane.CLOSED_OPTION:
-                refrescarTablas();
+//                System.out.println("Refrescar importar");
+                it = refrescarTablas();
                 break;
 
             default:
@@ -801,7 +842,7 @@ public class Otra extends JFrame {
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
-                                    // Custom cells //
+    // Custom cells //
     //////////////////////////////////////////////////////////////////////////////////////
 
     // Clase editor que sólo permite el uso de números en las celdas correspondientes
@@ -816,7 +857,7 @@ public class Otra extends JFrame {
 
             JFormattedTextField editor = (JFormattedTextField) super.getTableCellEditorComponent(table, value, isSelected, row, column);
 
-            if (value instanceof Number){
+            if (value instanceof Number) {
                 Locale myLocale = Locale.getDefault();
 
                 NumberFormat numberFormatB = NumberFormat.getInstance(myLocale);
@@ -824,7 +865,7 @@ public class Otra extends JFrame {
                 numberFormatB.setMinimumFractionDigits(2);
                 numberFormatB.setMinimumIntegerDigits(1);
 
-                editor.setFormatterFactory(new javax.swing.text.DefaultFormatterFactory(
+                editor.setFormatterFactory(new DefaultFormatterFactory(
                         new NumberFormatter(numberFormatB)));
 
                 editor.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -933,7 +974,11 @@ public class Otra extends JFrame {
             selectedDate = (Date) datePicker.getModel().getValue();
             String pattern = "yyyy-MM-dd";
             //            System.out.println(dateInString);
-            return new SimpleDateFormat(pattern).format(selectedDate);
+            if (selectedDate == null) {
+                return null;
+            } else {
+                return new SimpleDateFormat(pattern).format(selectedDate);
+            }
         }
 
     }
@@ -965,9 +1010,9 @@ public class Otra extends JFrame {
             button.setOpaque(true);
             button.addActionListener(e -> {
 
-                try{
+                try {
                     fireEditingStopped();
-                }catch(Exception ex){
+                } catch (Exception ex) {
                     System.err.println("Hay una excepción que no es necesario arreglarla hasta donde yo sé: \n" + ex);
                 }
             });
@@ -1008,6 +1053,7 @@ public class Otra extends JFrame {
                 int fila = Integer.parseInt(parts[2]);
 
                 ((DefaultTableModel) table.getModel()).removeRow(fila);
+//                System.out.println("Refrescar de button editor");
                 it = refrescarTablas();
             }
 
